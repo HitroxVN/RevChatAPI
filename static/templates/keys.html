@@ -1,0 +1,32 @@
+<!-- Phần Quản lý Key -->
+<div id="keysSection" class="max-w-6xl mx-auto">
+    <header class="mb-10">
+        <h1 class="text-4xl font-extrabold text-white tracking-tight">Quản lý Key</h1>
+        <p class="text-neutral-400 mt-2 text-lg font-medium">Quản lý danh sách API key truy cập và quyền hạn.</p>
+    </header>
+
+    <!-- Phần API Key -->
+    <section class="card overflow-hidden shadow-2xl">
+        <div class="p-8 border-b border-white/5 flex items-center justify-between bg-white/5">
+            <div>
+                <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                    <i data-lucide="key" class="w-6 h-6 text-yellow-500"></i>
+                    API Keys
+                </h2>
+                <p class="text-sm text-neutral-400 mt-2">Nhấp vào biểu tượng bút chì trên mỗi hàng để chỉnh sửa tên và ghi chú. (<span id="apiKeyCount" class="text-white font-bold">0</span> tổng số key)</p>
+            </div>
+            <button onclick="openCreateModal()" class="btn-gold px-6 py-3 rounded-2xl flex items-center gap-2 text-sm">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+                <span>Tạo key mới</span>
+            </button>
+        </div>
+
+        <div id="keysContainer" class="divide-y divide-white/5">
+            <!-- Key sẽ được đưa vào đây -->
+            <div class="p-20 text-center text-neutral-500" id="loading">
+                <i data-lucide="loader-2" class="w-10 h-10 animate-spin mx-auto mb-6 text-yellow-500"></i>
+                <p class="text-lg font-medium">Đang tải key từ server...</p>
+            </div>
+        </div>
+    </section>
+</div>

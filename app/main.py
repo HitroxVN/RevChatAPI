@@ -1,0 +1,136 @@
+"""Ứng dụng FastAPI chính."""
+import os
+import json
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from app.core.config import settings
+from app.core.logging import logger
+from app.api.v1.endpoints import chat as openai, providers as claude, health, admin
+from app.services.api_keys import api_key_manager
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    """Middleware xác thực API key."""
+    
+    async def dispatch(self, request: Request, call_next):
+        """Xử lý request với kiểm tra xác thực và thêm header bảo mật."""
+        # Thêm các header bảo mật cơ bản
+        response = None
+        
+        path = request.url.path
+        
+        # 1. Các endpoint công khai (Không cần xác thực)
+        PUBLIC_PATHS = {"/health", "/v1", "/v1/models", "/anthropic", "/anthropic/v1"}
+        if not settings.REQUIRE_AUTH or path in PUBLIC_PATHS:
+            response = await call_next(request)
+        
+        # 2. Các file tĩnh của giao diện Admin 
+        elif request.method == "GET" and (path.startswith("/admin") or path == "/admin"):
+            response = await call_next(request)
+            
+        # 3. Admin API (/api/admin/...)
+        elif path.startswith("/api/admin"):
+            response = await self._authenticate_admin(request, call_next)
+
+        # 4. Standard API (/v1/...) hoặc Anthropic API (/anthropic/v1/...)
+        elif path.startswith("/v1") or path.startswith("/anthropic/v1"):
+            response = await self._authenticate_api(request, call_next)
+        
+        else:
+            response = await call_next(request)
+
+        # Thêm các Security Headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        
+        return response
+
+    async def _authenticate_admin(self, request: Request, call_next):
+        """Xử lý xác thực Admin API."""
+        auth_header = request.headers.get("Authorization")
+        if auth_header != f"Bearer {settings.ADMIN_KEY}":
+            logger.warning(f"Yêu cầu Admin không được xác thực từ {request.client.host}")
+            return self._unauthorized_response()
+        return await call_next(request)
+
+    async def _authenticate_api(self, request: Request, call_next):
+        """Xử lý xác thực Standard API."""
+        auth_header = request.headers.get("Authorization")
+        x_api_key = request.headers.get("x-api-key")
+        
+        api_key = None
+        if auth_header and auth_header.startswith("Bearer "):
+            api_key = auth_header.replace("Bearer ", "")
+        elif x_api_key:
+            api_key = x_api_key
+            
+        if not api_key:
+            logger.warning(f"Thiếu header xác thực từ {request.client.host}")
+            return self._unauthorized_response()
+            
+        if not api_key_manager.get_key(api_key):
+            logger.warning(f"API key không hợp lệ từ {request.client.host}")
+            return self._unauthorized_response()
+            
+        return await call_next(request)
+
+    def _unauthorized_response(self) -> Response:
+        """Trả về response lỗi xác thực chuẩn hóa."""
+        return Response(
+            content=json.dumps({"error": "Unauthorized"}),
+            status_code=401,
+            media_type="application/json"
+        )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Quản lý vòng đời (lifespan) ứng dụng."""
+    # Khởi chạy (Startup)
+    logger.info(f"Đang khởi chạy {settings.API_TITLE} v{settings.API_VERSION}...")
+    logger.info(f"Yêu cầu xác thực: {settings.REQUIRE_AUTH}")
+    logger.info(f"CORS origins: {settings.CORS_ORIGINS}")
+    yield
+    # Tắt ứng dụng (Shutdown)
+    logger.info("Đang tắt ứng dụng...")
+
+
+app = FastAPI(
+    title=settings.API_TITLE,
+    version=settings.API_VERSION,
+    lifespan=lifespan
+)
+
+# Thêm CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Thêm auth middleware
+if settings.REQUIRE_AUTH:
+    app.add_middleware(AuthMiddleware)
+
+# Bao gồm các router
+app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(openai.router)
+app.include_router(claude.router)
+app.include_router(health.router)
+
+# Gắn kết các file tĩnh cho giao diện Admin
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+app.mount("/admin/static", StaticFiles(directory=static_dir), name="admin")
+
+@app.get("/admin")
+async def admin_ui():
+    """Cung cấp giao diện Admin."""
+    return FileResponse(os.path.join(static_dir, "index.html"))

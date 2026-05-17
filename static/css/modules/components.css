@@ -1,0 +1,73 @@
+.card {
+    background: rgba(28, 28, 30, 0.6);
+    backdrop-filter: blur(30px) saturate(190%);
+    -webkit-backdrop-filter: blur(30px) saturate(190%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+.btn-gold {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #000;
+    font-weight: 600;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 14px;
+    box-shadow: 0 4px 15px rgba(234, 179, 8, 0.2);
+}
+
+.btn-gold:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(234, 179, 8, 0.4);
+    filter: brightness(1.1);
+}
+
+.btn-gold:active {
+    transform: translateY(0) scale(0.98);
+}
+
+.input-dark {
+    background-color: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+/* Khắc phục hiển thị của các tùy chọn select */
+.input-dark option {
+    background-color: #1c1c1e;
+    color: #fff;
+}
+
+.input-dark:focus {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-color: var(--apple-gold);
+    box-shadow: 0 0 0 4px rgba(234, 179, 8, 0.1);
+    outline: none;
+}
+
+/* Thanh cuộn tùy chỉnh */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.status-badge {
+    backdrop-filter: blur(10px);
+    border: 1px solid currentColor;
+    opacity: 0.9;
+}

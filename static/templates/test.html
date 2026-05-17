@@ -1,0 +1,55 @@
+<!-- Phần Kiểm tra API -->
+<div id="testSection" class="hidden max-w-7xl mx-auto">
+    <header class="mb-10">
+        <h1 class="text-4xl font-extrabold text-white tracking-tight">API Playground</h1>
+        <p class="text-neutral-400 mt-2 text-lg font-medium">Kiểm tra các endpoint và phản hồi của model theo thời gian thực.</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        <!-- Bảng Request -->
+        <div class="space-y-6">
+            <div class="card p-8 shadow-2xl">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-3 uppercase tracking-wider text-sm text-neutral-500">
+                    <i data-lucide="send" class="w-5 h-5 text-yellow-500"></i>
+                    Cấu hình
+                </h3>
+                <div class="space-y-6">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-neutral-400 ml-1">CHỌN API KEY</label>
+                        <select id="testApiKey" class="w-full input-dark p-4 text-base appearance-none cursor-pointer">
+                            <option value="">Chọn một API key...</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-neutral-400 ml-1">ENDPOINT MODEL</label>
+                        <select id="testModel" class="w-full input-dark p-4 text-base appearance-none cursor-pointer">
+                            <option value="saigon-incom">saigon-incom</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-semibold text-neutral-400 ml-1">NỘI DUNG TIN NHẮN</label>
+                        <textarea id="testMessage" class="w-full input-dark p-4 text-base h-40 resize-none" placeholder="Nhập tin nhắn của bạn tại đây..."></textarea>
+                    </div>
+                    <button onclick="sendTestMessage()" id="sendBtn" class="w-full btn-gold py-5 rounded-2xl flex items-center justify-center gap-3 text-xl mt-4">
+                        <span>Thực thi Request</span>
+                        <i data-lucide="zap" class="w-6 h-6"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bảng Phản hồi -->
+        <div class="card p-8 flex flex-col h-full min-h-[600px] shadow-2xl">
+            <h3 class="text-xl font-bold text-white mb-6 flex items-center justify-between uppercase tracking-wider text-sm text-neutral-500">
+                <span class="flex items-center gap-3">
+                    <i data-lucide="code" class="w-5 h-5 text-blue-500"></i>
+                    Kết quả Phản hồi
+                </span>
+                <span id="responseStatus" class="status-badge text-[11px] px-3 py-1 rounded-full font-bold hidden"></span>
+            </h3>
+            <div id="testResponse" class="flex-1 bg-black/40 backdrop-blur-xl rounded-2xl p-6 font-mono text-sm overflow-auto text-neutral-400 border border-white/5 whitespace-pre-wrap leading-relaxed">
+                Chưa có phản hồi. Hãy thực thi một request để xem kết quả.
+            </div>
+        </div>
+    </div>
+</div>

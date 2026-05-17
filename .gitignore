@@ -1,0 +1,12 @@
+.env
+config.json
+
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+sh/
+
+.idea/
+.vscode/
+MY.md
