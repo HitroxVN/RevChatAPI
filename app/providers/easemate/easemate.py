@@ -38,8 +38,15 @@ class EaseMateProvider(BaseProvider):
                 with open(self.config_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     easemate_config = data.get("providers", {}).get("easemate", {})
-                    self.device_uuid = easemate_config.get("device_uuid")
-                    self.identity_id = easemate_config.get("identity_id")
+                    
+                    if isinstance(easemate_config, list) and len(easemate_config) > 0:
+                        # Use the first account as default
+                        first = easemate_config[0]
+                        self.device_uuid = first.get("device_uuid")
+                        self.identity_id = first.get("identity_id")
+                    elif isinstance(easemate_config, dict):
+                        self.device_uuid = easemate_config.get("device_uuid")
+                        self.identity_id = easemate_config.get("identity_id")
             except Exception as e:
                 logger.error(f"Lỗi khi tải cấu hình EaseMate từ config.json: {e}")
 

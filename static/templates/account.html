@@ -5,33 +5,56 @@
         <p class="text-neutral-400 mt-2 text-lg font-medium">Cấu hình thông tin đăng nhập và cài đặt dịch vụ bên ngoài.</p>
     </header>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div id="providerView" class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <!-- ChatX Provider Card -->
-        <div onclick="openAccountModal('chatx')" class="card p-8 shadow-2xl cursor-pointer hover:bg-white/5 transition-all group border border-transparent hover:border-yellow-500/20">
-            <div class="flex items-center justify-between mb-4">
-                <div class="p-3 bg-yellow-500/10 rounded-2xl group-hover:scale-110 transition-transform">
-                    <i data-lucide="shield-check" class="w-8 h-8 text-yellow-500"></i>
+        <div onclick="selectProvider('chatx')" class="card p-10 shadow-2xl cursor-pointer hover:bg-white/5 transition-all group border border-transparent hover:border-yellow-500/20">
+            <div class="flex items-center justify-between mb-6">
+                <div class="p-4 bg-yellow-500/10 rounded-3xl group-hover:scale-110 transition-transform">
+                    <i data-lucide="shield-check" class="w-10 h-10 text-yellow-500"></i>
                 </div>
                 <div class="text-neutral-500 group-hover:text-yellow-500 transition-colors">
-                    <i data-lucide="external-link" class="w-6 h-6"></i>
+                    <i data-lucide="chevron-right" class="w-8 h-8"></i>
                 </div>
             </div>
-            <h3 class="text-2xl font-bold text-white tracking-tight">ChatX Provider</h3>
-            <p class="text-sm text-neutral-400 mt-2">Quản lý tài khoản ChatX và cấu hình lịch sử.</p>
+            <h3 class="text-3xl font-bold text-white tracking-tight">ChatX Provider</h3>
+            <p class="text-lg text-neutral-400 mt-3">Quản lý các tài khoản DeepSeek, Claude, GPT thông qua hệ thống ChatX.</p>
         </div>
 
         <!-- EaseMate Provider Card -->
-        <div onclick="openAccountModal('easemate')" class="card p-8 shadow-2xl cursor-pointer hover:bg-white/5 transition-all group border border-transparent hover:border-blue-500/20">
-            <div class="flex items-center justify-between mb-4">
-                <div class="p-3 bg-blue-500/10 rounded-2xl group-hover:scale-110 transition-transform">
-                    <i data-lucide="cpu" class="w-8 h-8 text-blue-500"></i>
+        <div onclick="selectProvider('easemate')" class="card p-10 shadow-2xl cursor-pointer hover:bg-white/5 transition-all group border border-transparent hover:border-blue-500/20">
+            <div class="flex items-center justify-between mb-6">
+                <div class="p-4 bg-blue-500/10 rounded-3xl group-hover:scale-110 transition-transform">
+                    <i data-lucide="cpu" class="w-10 h-10 text-blue-500"></i>
                 </div>
                 <div class="text-neutral-500 group-hover:text-blue-500 transition-colors">
-                    <i data-lucide="external-link" class="w-6 h-6"></i>
+                    <i data-lucide="chevron-right" class="w-8 h-8"></i>
                 </div>
             </div>
-            <h3 class="text-2xl font-bold text-white tracking-tight">EaseMate Provider</h3>
-            <p class="text-sm text-neutral-400 mt-2">Cấu hình Device UUID, Identity ID và hướng dẫn lấy token.</p>
+            <h3 class="text-3xl font-bold text-white tracking-tight">EaseMate Provider</h3>
+            <p class="text-lg text-neutral-400 mt-3">Cấu hình Device UUID và Identity ID cho các model AI của EaseMate.</p>
+        </div>
+    </div>
+
+    <!-- View danh sách tài khoản của Provider đã chọn -->
+    <div id="accountListView" class="hidden space-y-8">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <button onclick="backToProviders()" class="p-3 bg-white/5 hover:bg-white/10 text-white rounded-2xl transition-all border border-white/5">
+                    <i data-lucide="arrow-left" class="w-6 h-6"></i>
+                </button>
+                <div>
+                    <h2 id="selectedProviderTitle" class="text-3xl font-bold text-white tracking-tight">Danh sách Tài khoản</h2>
+                    <p id="selectedProviderSubtitle" class="text-neutral-400 text-sm font-medium mt-1">Nạp danh sách tài khoản...</p>
+                </div>
+            </div>
+            <button onclick="createNewAccount()" class="btn-gold px-6 py-3 rounded-xl flex items-center gap-2 font-bold shadow-lg hover:scale-105 transition-all">
+                <i data-lucide="plus" class="w-5 h-5"></i>
+                <span>Thêm Tài khoản</span>
+            </button>
+        </div>
+
+        <div id="accountList" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Tài khoản sẽ được nạp động tại đây -->
         </div>
     </div>
 
@@ -141,5 +164,4 @@
             </div>
         </div>
     </div>
-</div>
 </div>

@@ -36,28 +36,37 @@ async def delete_key(data: Dict[str, str] = Body(...)):
     success = api_key_manager.delete_key(key)
     return {"success": success}
 
-@router.get("/chatx/account")
-async def get_chatx_account():
-    account_data = {"email": "", "password": "", "auto_clear_history": False}
+@router.get("/chatx/accounts")
+async def get_chatx_accounts():
+    accounts = []
     try:
         if os.path.exists("config.json"):
             with open("config.json", 'r', encoding='utf-8') as f:
                 data = json.load(f)
             if "providers" in data and "chatx" in data["providers"]:
                 chatx_config = data["providers"]["chatx"]
-                account_data["email"] = chatx_config.get("email", "")
-                account_data["password"] = chatx_config.get("password", "")
-                account_data["auto_clear_history"] = chatx_config.get("auto_clear_history", False)
+                if isinstance(chatx_config, list):
+                    accounts = chatx_config
+                elif isinstance(chatx_config, dict):
+                    # Migration: convert single object to list
+                    account = {
+                        "id": "default",
+                        "email": chatx_config.get("email", ""),
+                        "password": chatx_config.get("password", ""),
+                        "auto_clear_history": chatx_config.get("auto_clear_history", False)
+                    }
+                    accounts = [account]
     except Exception:
         pass
     
     return {
         "success": True,
-        "account": account_data
+        "accounts": accounts
     }
 
-@router.post("/chatx/account/update")
-async def update_chatx_account(data: Dict[str, Any] = Body(...)):
+@router.post("/chatx/account/save")
+async def save_chatx_account(data: Dict[str, Any] = Body(...)):
+    account_id = data.get("id")
     email = data.get("email")
     password = data.get("password")
     auto_clear_history = data.get("auto_clear_history", False)
@@ -74,48 +83,112 @@ async def update_chatx_account(data: Dict[str, Any] = Body(...)):
         if "providers" not in config_data:
             config_data["providers"] = {}
             
-        if "chatx" not in config_data["providers"]:
-            config_data["providers"]["chatx"] = {}
+        if "chatx" not in config_data["providers"] or not isinstance(config_data["providers"]["chatx"], list):
+            # Migrate or initialize
+            if "chatx" in config_data["providers"] and isinstance(config_data["providers"]["chatx"], dict):
+                old = config_data["providers"]["chatx"]
+                config_data["providers"]["chatx"] = [{
+                    "id": "default",
+                    "email": old.get("email", ""),
+                    "password": old.get("password", ""),
+                    "auto_clear_history": old.get("auto_clear_history", False)
+                }]
+            else:
+                config_data["providers"]["chatx"] = []
             
-        config_data["providers"]["chatx"]["email"] = email
-        if password:
-            config_data["providers"]["chatx"]["password"] = password
-        config_data["providers"]["chatx"]["auto_clear_history"] = auto_clear_history
+        accounts = config_data["providers"]["chatx"]
+        
+        if account_id:
+            # Update existing
+            found = False
+            for acc in accounts:
+                if acc.get("id") == account_id:
+                    acc["email"] = email
+                    if password:
+                        acc["password"] = password
+                    acc["auto_clear_history"] = auto_clear_history
+                    found = True
+                    break
+            if not found:
+                return {"success": False, "message": "Account not found"}
+        else:
+            # Create new
+            import uuid
+            new_acc = {
+                "id": str(uuid.uuid4()),
+                "email": email,
+                "password": password,
+                "auto_clear_history": auto_clear_history
+            }
+            accounts.append(new_acc)
         
         with open("config.json", 'w', encoding='utf-8') as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
             
-    # Cập nhật trạng thái của provider
-        chatx_provider.email = email
-        if password:
-            chatx_provider.password = password
-        chatx_provider.auto_clear_history = auto_clear_history
+        # Update provider state (using the first active account as default for now)
+        if accounts:
+            first = accounts[0]
+            chatx_provider.email = first.get("email")
+            if first.get("password"):
+                chatx_provider.password = first.get("password")
+            chatx_provider.auto_clear_history = first.get("auto_clear_history", False)
             
         return {"success": True}
     except Exception as e:
         return {"success": False, "message": str(e)}
 
-@router.get("/easemate/account")
-async def get_easemate_account():
-    account_data = {"device_uuid": "", "identity_id": ""}
+@router.post("/chatx/account/delete")
+async def delete_chatx_account(data: Dict[str, Any] = Body(...)):
+    account_id = data.get("id")
+    if not account_id:
+        return {"success": False, "message": "ID is required"}
+        
+    try:
+        if os.path.exists("config.json"):
+            with open("config.json", 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+            
+            if "providers" in config_data and "chatx" in config_data["providers"]:
+                accounts = config_data["providers"]["chatx"]
+                if isinstance(accounts, list):
+                    config_data["providers"]["chatx"] = [acc for acc in accounts if acc.get("id") != account_id]
+                    
+                    with open("config.json", 'w', encoding='utf-8') as f:
+                        json.dump(config_data, f, indent=2, ensure_ascii=False)
+                    return {"success": True}
+        return {"success": False, "message": "Account not found"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+@router.get("/easemate/accounts")
+async def get_easemate_accounts():
+    accounts = []
     try:
         if os.path.exists("config.json"):
             with open("config.json", 'r', encoding='utf-8') as f:
                 data = json.load(f)
             if "providers" in data and "easemate" in data["providers"]:
                 easemate_config = data["providers"]["easemate"]
-                account_data["device_uuid"] = easemate_config.get("device_uuid", "")
-                account_data["identity_id"] = easemate_config.get("identity_id", "")
+                if isinstance(easemate_config, list):
+                    accounts = easemate_config
+                elif isinstance(easemate_config, dict):
+                    account = {
+                        "id": "default",
+                        "device_uuid": easemate_config.get("device_uuid", ""),
+                        "identity_id": easemate_config.get("identity_id", "")
+                    }
+                    accounts = [account]
     except Exception:
         pass
     
     return {
         "success": True,
-        "account": account_data
+        "accounts": accounts
     }
 
-@router.post("/easemate/account/update")
-async def update_easemate_account(data: Dict[str, Any] = Body(...)):
+@router.post("/easemate/account/save")
+async def save_easemate_account(data: Dict[str, Any] = Body(...)):
+    account_id = data.get("id")
     device_uuid = data.get("device_uuid")
     identity_id = data.get("identity_id")
     
@@ -131,20 +204,70 @@ async def update_easemate_account(data: Dict[str, Any] = Body(...)):
         if "providers" not in config_data:
             config_data["providers"] = {}
             
-        if "easemate" not in config_data["providers"]:
-            config_data["providers"]["easemate"] = {}
+        if "easemate" not in config_data["providers"] or not isinstance(config_data["providers"]["easemate"], list):
+            if "easemate" in config_data["providers"] and isinstance(config_data["providers"]["easemate"], dict):
+                old = config_data["providers"]["easemate"]
+                config_data["providers"]["easemate"] = [{
+                    "id": "default",
+                    "device_uuid": old.get("device_uuid", ""),
+                    "identity_id": old.get("identity_id", "")
+                }]
+            else:
+                config_data["providers"]["easemate"] = []
             
-        config_data["providers"]["easemate"]["device_uuid"] = device_uuid
-        config_data["providers"]["easemate"]["identity_id"] = identity_id
+        accounts = config_data["providers"]["easemate"]
+        
+        if account_id:
+            found = False
+            for acc in accounts:
+                if acc.get("id") == account_id:
+                    acc["device_uuid"] = device_uuid
+                    acc["identity_id"] = identity_id
+                    found = True
+                    break
+            if not found:
+                return {"success": False, "message": "Account not found"}
+        else:
+            import uuid
+            new_acc = {
+                "id": str(uuid.uuid4()),
+                "device_uuid": device_uuid,
+                "identity_id": identity_id
+            }
+            accounts.append(new_acc)
         
         with open("config.json", 'w', encoding='utf-8') as f:
             json.dump(config_data, f, indent=2, ensure_ascii=False)
             
-        # Cập nhật trạng thái của provider
-        easemate_provider.device_uuid = device_uuid
-        easemate_provider.identity_id = identity_id
+        if accounts:
+            first = accounts[0]
+            easemate_provider.device_uuid = first.get("device_uuid")
+            easemate_provider.identity_id = first.get("identity_id")
             
         return {"success": True}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+@router.post("/easemate/account/delete")
+async def delete_easemate_account(data: Dict[str, Any] = Body(...)):
+    account_id = data.get("id")
+    if not account_id:
+        return {"success": False, "message": "ID is required"}
+        
+    try:
+        if os.path.exists("config.json"):
+            with open("config.json", 'r', encoding='utf-8') as f:
+                config_data = json.load(f)
+            
+            if "providers" in config_data and "easemate" in config_data["providers"]:
+                accounts = config_data["providers"]["easemate"]
+                if isinstance(accounts, list):
+                    config_data["providers"]["easemate"] = [acc for acc in accounts if acc.get("id") != account_id]
+                    
+                    with open("config.json", 'w', encoding='utf-8') as f:
+                        json.dump(config_data, f, indent=2, ensure_ascii=False)
+                    return {"success": True}
+        return {"success": False, "message": "Account not found"}
     except Exception as e:
         return {"success": False, "message": str(e)}
 

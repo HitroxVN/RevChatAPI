@@ -46,13 +46,21 @@ class ChatXProvider(BaseProvider):
                     
                 if isinstance(data, dict) and "providers" in data and "chatx" in data["providers"]:
                     chatx_config = data["providers"]["chatx"]
-                    self.email = chatx_config.get("email")
-                    self.password = chatx_config.get("password")
-                    self.auto_clear_history = chatx_config.get("auto_clear_history", False)
-                    if "cookies" in chatx_config:
-                        # Tải cookies vào httpx client
-                        for k, v in chatx_config["cookies"].items():
-                            self.client.cookies.set(k, v, domain="chatx.ai")
+                    
+                    target_config = None
+                    if isinstance(chatx_config, list) and len(chatx_config) > 0:
+                        target_config = chatx_config[0]
+                    elif isinstance(chatx_config, dict):
+                        target_config = chatx_config
+                        
+                    if target_config:
+                        self.email = target_config.get("email")
+                        self.password = target_config.get("password")
+                        self.auto_clear_history = target_config.get("auto_clear_history", False)
+                        if "cookies" in target_config:
+                            # Tải cookies vào httpx client
+                            for k, v in target_config["cookies"].items():
+                                self.client.cookies.set(k, v, domain="chatx.ai")
         except Exception as e:
             print(f"Lỗi khi tải cấu hình ChatX: {e}")
             self.email = None
@@ -69,12 +77,31 @@ class ChatXProvider(BaseProvider):
                     data["providers"] = {}
                 
                 if "chatx" not in data["providers"]:
-                    data["providers"]["chatx"] = {}
+                    data["providers"]["chatx"] = []
                 
-                # Trích xuất cookies từ httpx client
+                chatx_config = data["providers"]["chatx"]
                 cookies_dict = {c.name: c.value for c in self.client.cookies.jar}
-                data["providers"]["chatx"]["cookies"] = cookies_dict
-                data["providers"]["chatx"]["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+                
+                if isinstance(chatx_config, list):
+                    found = False
+                    for acc in chatx_config:
+                        if acc.get("email") == self.email:
+                            acc["cookies"] = cookies_dict
+                            acc["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+                            found = True
+                            break
+                    
+                    if not found and self.email:
+                        # Thêm mới nếu chưa có
+                        chatx_config.append({
+                            "id": str(uuid.uuid4()),
+                            "email": self.email,
+                            "cookies": cookies_dict,
+                            "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S")
+                        })
+                elif isinstance(chatx_config, dict):
+                    data["providers"]["chatx"]["cookies"] = cookies_dict
+                    data["providers"]["chatx"]["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
                 
                 with open(self.config_path, 'w', encoding='utf-8') as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)
