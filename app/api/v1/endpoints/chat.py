@@ -4,6 +4,7 @@ import time
 import uuid
 import asyncio
 import requests
+import httpx
 from typing import Dict, Any
 from fastapi import APIRouter, HTTPException, Body, Response
 from fastapi.responses import StreamingResponse
@@ -135,34 +136,39 @@ async def chat_completions(request: Dict[str, Any] = Body(...)):
         error_msg = str(e)
         try:
             # Thử lấy thêm thông tin chi tiết từ nội dung response
-            error_msg = f"{e}. Response: {e.response.text}"
+            if e.response is not None and e.response.text:
+                error_msg = f"{e}. Phản hồi từ server: {e.response.text}"
         except:
             pass
             
-        log_error(session_id, error_msg)
+        log_error(session_id, f"Lỗi HTTP: {error_msg}")
         error_response = {
             'error': {
-                'message': error_msg,
+                'message': error_msg or "Lỗi kết nối đến dịch vụ cung cấp AI",
                 'type': 'api_error',
                 'code': 'api_error'
             }
         }
         return Response(
-            content=json.dumps(error_response),
+            content=json.dumps(error_response, ensure_ascii=False),
             status_code=status_code,
             media_type="application/json"
         )
     except Exception as e:
-        log_error(session_id, str(e))
+        import traceback
+        error_trace = traceback.format_exc()
+        error_msg = str(e)
+        log_error(session_id, f"Lỗi không xác định: {error_msg}\n{error_trace}")
+        
         error_response = {
             'error': {
-                'message': str(e),
+                'message': error_msg or "Đã xảy ra lỗi nội bộ trong hệ thống",
                 'type': 'api_error',
                 'code': 'api_error'
             }
         }
         return Response(
-            content=json.dumps(error_response),
+            content=json.dumps(error_response, ensure_ascii=False),
             status_code=500,
             media_type="application/json"
         )

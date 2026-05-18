@@ -1,0 +1,23 @@
+{
+  "api_keys": [
+    {
+      "key": "sk-example-key-1234567890",
+      "name": "Key Admin Mặc định",
+      "description": "Key mẫu để truy cập API",
+      "created_at": "2026-05-18T21:00:00.000000"
+    }
+  ],
+  "providers": {
+    "chatx": {
+      "email": "user@example.com",
+      "password": "your_password",
+      "auto_clear_history": true,
+      "cookies": {},
+      "updated_at": ""
+    },
+    "easemate": {
+      "device_uuid": "",
+      "identity_id": ""
+    }
+  }
+}

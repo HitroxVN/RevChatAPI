@@ -11,9 +11,9 @@ class Settings:
     """Các thiết lập của ứng dụng."""
     
     # Thiết lập API
-    API_TITLE: str = "RevChatAPI"
-    API_VERSION: str = "v1"
-    DEFAULT_MODEL: str = "test/saigon-incom"
+    API_TITLE: str = os.getenv("API_TITLE", "RevChatAPI")
+    API_VERSION: str = os.getenv("API_VERSION", "v1")
+    DEFAULT_MODEL: str = os.getenv("DEFAULT_MODEL", "easemate/gemini-2.0-flash")
     
     # Thiết lập Server
     HOST: str = os.getenv("HOST", "0.0.0.0")
@@ -39,6 +39,8 @@ class Settings:
     
     # Nhật ký ứng dụng (Logging)
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    
+    NODE_PATH: str = os.getenv("NODE_PATH", "node")
     
     # Thiết lập Session
     SESSION_TTL: int = int(os.getenv("SESSION_TTL", "3600"))  # 1 giờ

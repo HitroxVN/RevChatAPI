@@ -65,4 +65,5 @@ class SaigonProvider(BaseProvider):
                 yield output[i:i+chunk_size]
                 
         except Exception as e:
-            yield f"Lỗi khi gọi Saigon Incom: {str(e)}"
+            # Raise exception thay vì yield string để API trả về đúng status code
+            raise e

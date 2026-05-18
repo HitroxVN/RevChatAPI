@@ -8,6 +8,15 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+class NoCacheStaticFiles(StaticFiles):
+    """Ghi đè StaticFiles."""
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
 from app.core.config import settings
 from app.core.logging import logger
 from app.api.v1.endpoints import chat as openai, providers as claude, health, admin
@@ -48,6 +57,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        
+        if path.startswith("/admin") or path.startswith("/api/admin"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
         
         return response
 
@@ -128,9 +142,23 @@ app.include_router(health.router)
 
 # Gắn kết các file tĩnh cho giao diện Admin
 static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
-app.mount("/admin/static", StaticFiles(directory=static_dir), name="admin")
+app.mount("/admin/assets", NoCacheStaticFiles(directory=static_dir), name="admin")
 
 @app.get("/admin")
-async def admin_ui():
+async def admin_ui(request: Request):
     """Cung cấp giao diện Admin."""
-    return FileResponse(os.path.join(static_dir, "index.html"))
+    logger.info(f"[*] Yêu cầu giao diện Admin từ {request.client.host}")
+    
+    index_path = os.path.join(static_dir, "index.html")
+    if not os.path.exists(index_path):
+        return Response(content="Không tìm thấy file index.html", status_code=404)
+        
+    with open(index_path, "r", encoding="utf-8") as f:
+        content = f.read()
+        
+    response = Response(content=content, media_type="text/html")
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    response.headers["X-Server-Version"] = "1.1-Live"
+    return response

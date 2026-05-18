@@ -44,13 +44,14 @@ class ChatXProvider(BaseProvider):
                 with open(self.config_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     
-                if isinstance(data, dict) and "chatx" in data:
-                    self.email = data["chatx"].get("email")
-                    self.password = data["chatx"].get("password")
-                    self.auto_clear_history = data["chatx"].get("auto_clear_history", False)
-                    if "cookies" in data["chatx"]:
+                if isinstance(data, dict) and "providers" in data and "chatx" in data["providers"]:
+                    chatx_config = data["providers"]["chatx"]
+                    self.email = chatx_config.get("email")
+                    self.password = chatx_config.get("password")
+                    self.auto_clear_history = chatx_config.get("auto_clear_history", False)
+                    if "cookies" in chatx_config:
                         # Tải cookies vào httpx client
-                        for k, v in data["chatx"]["cookies"].items():
+                        for k, v in chatx_config["cookies"].items():
                             self.client.cookies.set(k, v, domain="chatx.ai")
         except Exception as e:
             print(f"Lỗi khi tải cấu hình ChatX: {e}")
@@ -64,13 +65,16 @@ class ChatXProvider(BaseProvider):
                 with open(self.config_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 
-                if "chatx" not in data:
-                    data["chatx"] = {}
+                if "providers" not in data:
+                    data["providers"] = {}
+                
+                if "chatx" not in data["providers"]:
+                    data["providers"]["chatx"] = {}
                 
                 # Trích xuất cookies từ httpx client
                 cookies_dict = {c.name: c.value for c in self.client.cookies.jar}
-                data["chatx"]["cookies"] = cookies_dict
-                data["chatx"]["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+                data["providers"]["chatx"]["cookies"] = cookies_dict
+                data["providers"]["chatx"]["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
                 
                 with open(self.config_path, 'w', encoding='utf-8') as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)
@@ -205,11 +209,9 @@ class ChatXProvider(BaseProvider):
                 print("[*] Không thể bắt đầu chat, đang thử đăng nhập...")
                 if await self.login():
                     if not await self.start_new_chat():
-                        yield "Error: Không thể bắt đầu session chat sau khi đăng nhập"
-                        return
+                        raise Exception("Không thể bắt đầu session chat sau khi đăng nhập")
                 else:
-                    yield "Error: Xác thực ChatX thất bại"
-                    return
+                    raise Exception("Xác thực ChatX thất bại")
 
         payload = {
             "_token": self.csrf_token,
@@ -225,20 +227,17 @@ class ChatXProvider(BaseProvider):
         try:
             response = await self.client.post(f"{self.base_url}/sendchat", data=payload, headers=headers, timeout=30.0)
             if response.status_code != 200:
-                yield f"Error: ChatX /sendchat thất bại với trạng thái {response.status_code}. Response: {response.text}"
-                return
+                raise Exception(f"ChatX /sendchat thất bại với trạng thái {response.status_code}. Response: {response.text}")
             
             data = response.json()
             if not data.get("response"):
-                yield f"Error: ChatX trả về lỗi: {data.get('message', 'Lỗi không xác định')}"
-                return
+                raise Exception(f"ChatX trả về lỗi: {data.get('message', 'Lỗi không xác định')}")
 
             conv_id = data.get("conversions_id")
             ass_conv_id = data.get("ass_conversions_id")
             
             if not conv_id or not ass_conv_id:
-                yield "Error: Không thể khởi tạo hội thoại"
-                return
+                raise Exception("Không thể khởi tạo hội thoại")
             
             stream_params = {
                 "user_id": self.user_id,
@@ -287,11 +286,11 @@ class ChatXProvider(BaseProvider):
             if not has_yielded:
                 if raw_unparsed:
                     err_msg = " | ".join(raw_unparsed[:5])
-                    yield f"ChatX trả về một response trống. Dữ liệu stream thô: {err_msg}"
+                    raise Exception(f"ChatX trả về một response trống. Dữ liệu stream thô: {err_msg}")
                 else:
-                    yield "Không có phản hồi từ ChatX (Stream trống hoặc kết nối bị đóng)."
+                    raise Exception("Không có phản hồi từ ChatX (Stream trống hoặc kết nối bị đóng).")
                     
         except Exception as e:
-            yield f"Lỗi kết nối tới ChatX: {e}"
+            raise e
 
 

@@ -1,6 +1,6 @@
 export async function loadTemplate(containerId, templateName) {
     try {
-        const response = await fetch(`/admin/static/templates/${templateName}.html`);
+        const response = await fetch(`/admin/assets/templates/${templateName}.html`);
         const html = await response.text();
         const container = document.getElementById(containerId);
         if (container) {

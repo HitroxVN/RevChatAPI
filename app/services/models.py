@@ -219,6 +219,19 @@ def init_model_service(config_path: Optional[str] = None) -> ModelService:
     return _model_service_instance
 
 
+# Ánh xạ tên model thân thiện sang ID của EaseMate
+EASEMATE_MODEL_MAPPING = {
+    "llama-3.3": 1,
+    "claude-3-haiku": 2,
+    "gpt-4o-mini": 3,
+    "deepseek-v3.2": 4,
+    "deepseek-r1": 5,
+    "gemini-2.0-flash": 6,
+    "kimi-k2.5": 10,
+    "qwen3-235b": 11,
+    "gemini-3.0-flash": 17
+}
+
 def get_available_models() -> List[Dict[str, Any]]:
     """Lấy danh sách các model hiện có cho tính tương thích OpenAI."""
     service = get_model_service()
@@ -227,7 +240,7 @@ def get_available_models() -> List[Dict[str, Any]]:
     if not models:
         # Dự phòng cho các giá trị mặc định (fallback)
         now = int(time.time())
-        return [
+        fallback_list = [
             {
                 "id": "test/saigon-incom",
                 "object": "model",
@@ -247,6 +260,17 @@ def get_available_models() -> List[Dict[str, Any]]:
                 "owned_by": "chatx"
             }
         ]
+        
+        # Thêm các model EaseMate với ID thân thiện
+        for name, mid in EASEMATE_MODEL_MAPPING.items():
+            fallback_list.append({
+                "id": f"easemate/{name}",
+                "object": "model",
+                "created": now,
+                "owned_by": "easemate"
+            })
+            
+        return fallback_list
     
     # Định dạng cho phản hồi OpenAI
     return [
@@ -262,16 +286,20 @@ def get_available_models() -> List[Dict[str, Any]]:
 
 from app.providers.chatx import ChatXProvider
 from app.providers.saigon import SaigonProvider
+from app.providers.easemate.easemate import EaseMateProvider
 
 # Khởi tạo các provider một lần để giữ trạng thái/connection pool của chúng
 chatx_provider = ChatXProvider()
 saigon_provider = SaigonProvider()
+easemate_provider = EaseMateProvider()
 
 async def dispatch_message(model: str, message: str, session_id: str = None) -> Tuple[AsyncGenerator[str, None], str]:
     """Điều phối tin nhắn đến backend service phù hợp dựa trên tên model."""
     model_lower = model.lower()
     if model == "test/saigon-incom":
         return await saigon_provider.generate_stream(message, model, session_id)
+    elif "easemate" in model_lower:
+        return await easemate_provider.generate_stream(message, model, session_id)
     elif any(k in model_lower for k in ["deepseek", "chatx", "gpt", "claude"]):
         return await chatx_provider.generate_stream(message, model, session_id)
     else:
