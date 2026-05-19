@@ -1,11 +1,19 @@
 from fastapi import APIRouter, Body, HTTPException
 from typing import Dict, Any, List
+from app.core.config import settings
 from app.services.api_keys import api_key_manager
 from app.services.models import chatx_provider, easemate_provider
 import json
 import os
 
 router = APIRouter()
+
+@router.post("/login")
+async def login(data: Dict[str, str] = Body(...)):
+    password = data.get("password")
+    if password == settings.ADMIN_KEY:
+        return {"access_token": password}
+    raise HTTPException(status_code=401, detail="Admin Key không chính xác")
 
 @router.get("/keys")
 async def get_keys():

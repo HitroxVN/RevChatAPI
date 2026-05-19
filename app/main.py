@@ -43,7 +43,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
             
         # 3. Admin API (/api/admin/...)
         elif path.startswith("/api/admin"):
-            response = await self._authenticate_admin(request, call_next)
+            # Cho phép endpoint login không cần xác thực header
+            if path == "/api/admin/login":
+                response = await call_next(request)
+            else:
+                response = await self._authenticate_admin(request, call_next)
 
         # 4. Standard API (/v1/...) hoặc Anthropic API (/anthropic/v1/...)
         elif path.startswith("/v1") or path.startswith("/anthropic/v1"):
@@ -140,25 +144,33 @@ app.include_router(openai.router)
 app.include_router(claude.router)
 app.include_router(health.router)
 
-# Gắn kết các file tĩnh cho giao diện Admin
-static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
-app.mount("/admin/assets", NoCacheStaticFiles(directory=static_dir), name="admin")
+# Gắn kết các file tĩnh cho giao diện Admin (SPA)
+frontend_dist = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist")
+
+# Mount thư mục assets riêng để truy cập nhanh các file JS/CSS
+if os.path.exists(frontend_dist):
+    assets_dir = os.path.join(frontend_dist, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/admin/assets", StaticFiles(directory=assets_dir), name="admin_assets")
+
+@app.get("/admin/{path:path}")
+async def admin_ui(path: str):
+    """Cung cấp giao diện Admin (SPA support)."""
+    if not os.path.exists(frontend_dist):
+        return Response(content="Frontend chưa được build. Vui lòng chạy 'npm run build' trong thư mục frontend.", status_code=503)
+
+    # 1. Thử tìm file vật lý trong thư mục dist (cho favicon.ico, vite.svg, v.v.)
+    file_path = os.path.join(frontend_dist, path)
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+
+    # 2. Nếu không thấy file, hoặc là đường dẫn router (SPA), trả về index.html
+    index_path = os.path.join(frontend_dist, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    
+    return Response(content="Không tìm thấy file index.html", status_code=404)
 
 @app.get("/admin")
-async def admin_ui(request: Request):
-    """Cung cấp giao diện Admin."""
-    logger.info(f"[*] Yêu cầu giao diện Admin từ {request.client.host}")
-    
-    index_path = os.path.join(static_dir, "index.html")
-    if not os.path.exists(index_path):
-        return Response(content="Không tìm thấy file index.html", status_code=404)
-        
-    with open(index_path, "r", encoding="utf-8") as f:
-        content = f.read()
-        
-    response = Response(content=content, media_type="text/html")
-    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    response.headers["X-Server-Version"] = "1.1-Live"
-    return response
+async def admin_root():
+    return await admin_ui("")
