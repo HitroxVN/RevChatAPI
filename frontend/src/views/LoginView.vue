@@ -5,16 +5,16 @@
     <div class="vibrant-blob w-[500px] h-[500px] bg-blue-600/10 -bottom-48 -right-24"></div>
 
     <div class="w-full max-w-md relative z-10 animate-fade-in">
-      <div class="text-center mb-12">
-        <div class="inline-block w-24 h-24 bg-white/5 rounded-[32px] mb-6 shadow-[0_0_30px_rgba(255,255,255,0.05)] border border-white/10 overflow-hidden animate-bounce-slow">
+      <div class="text-center mb-10 lg:mb-12">
+        <div class="inline-block w-20 h-20 lg:w-24 lg:h-24 bg-white/5 rounded-[28px] lg:rounded-[32px] mb-6 shadow-[0_0_30px_rgba(255,255,255,0.05)] border border-white/10 overflow-hidden animate-bounce-slow">
           <img src="/logo.png" alt="Logo" class="w-full h-full object-contain p-2" />
         </div>
-        <h1 class="text-6xl font-black text-white tracking-tighter mb-2">RevChat</h1>
-        <p class="text-neutral-500 font-bold uppercase tracking-[0.3em] text-xs">Hệ thống Quản trị</p>
+        <h1 class="text-4xl lg:text-6xl font-black text-white tracking-tighter mb-2">RevChat</h1>
+        <p class="text-neutral-500 font-bold uppercase tracking-[0.3em] text-[10px] lg:text-xs">Hệ thống Quản trị</p>
       </div>
 
-      <div class="glass-card p-10 shadow-2xl">
-        <div class="space-y-8">
+      <div class="glass-card p-8 lg:p-10 shadow-2xl">
+        <div class="space-y-6 lg:space-y-8">
           <div class="space-y-3">
             <label class="block text-[10px] font-black text-neutral-500 ml-1 uppercase tracking-[0.2em]">Admin Authentication</label>
             <div class="relative group">
@@ -22,7 +22,7 @@
               <input 
                 v-model="password"
                 type="password" 
-                class="w-full glass-input py-5 pl-14 pr-5 text-lg" 
+                class="w-full glass-input py-4 lg:py-5 pl-14 pr-5 text-base lg:text-lg" 
                 placeholder="Nhập Admin Key..."
                 @keyup.enter="handleLogin"
               >
@@ -32,7 +32,7 @@
           <button 
             @click="handleLogin"
             :disabled="loading"
-            class="w-full btn-gold py-5 rounded-[24px] text-xl font-black shadow-xl flex items-center justify-center gap-3 disabled:opacity-50"
+            class="w-full btn-gold py-4 lg:py-5 rounded-[20px] lg:rounded-[24px] text-lg lg:text-xl font-black shadow-xl flex items-center justify-center gap-3 disabled:opacity-50"
           >
             <template v-if="loading">
               <Loader2 class="w-6 h-6 animate-spin" />

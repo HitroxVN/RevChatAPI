@@ -1,10 +1,10 @@
 <template>
-  <div class="fixed top-6 right-6 z-[200] flex flex-col gap-4 pointer-events-none">
+  <div class="fixed top-20 md:top-6 left-4 right-4 md:left-auto md:right-6 z-[200] flex flex-col gap-4 pointer-events-none">
     <transition-group name="alert">
       <div 
         v-for="alert in uiStore.alerts" 
         :key="alert.id"
-        class="pointer-events-auto flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-xl min-w-[300px] max-w-md animate-slide-in"
+        class="pointer-events-auto flex items-center gap-3 px-5 md:px-6 py-3.5 md:py-4 rounded-[20px] md:rounded-2xl shadow-2xl border backdrop-blur-xl md:min-w-[300px] animate-slide-in"
         :class="alertClass(alert.type)"
       >
         <component :is="alertIcon(alert.type)" class="w-6 h-6 flex-shrink-0" />

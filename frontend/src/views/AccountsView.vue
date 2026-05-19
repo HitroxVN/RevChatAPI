@@ -1,72 +1,72 @@
 <template>
   <div class="max-w-5xl mx-auto space-y-12">
     <header class="px-2">
-      <h1 class="text-5xl font-black text-white tracking-tighter">Tài khoản</h1>
-      <p class="text-neutral-500 mt-2 font-bold uppercase tracking-[0.2em] text-xs">Quản lý định danh các nhà cung cấp AI</p>
+      <h1 class="text-3xl lg:text-5xl font-black text-white tracking-tighter">Tài khoản</h1>
+      <p class="text-neutral-500 mt-2 font-bold uppercase tracking-[0.2em] text-[10px] lg:text-xs">Quản lý định danh các nhà cung cấp AI</p>
     </header>
 
     <!-- Provider Selection -->
-    <div v-if="!currentProvider" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+    <div v-if="!currentProvider" class="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
       <!-- ChatX Provider Card -->
       <div 
         @click="currentProvider = 'chatx'" 
-        class="glass-card p-12 cursor-pointer group hover:bg-white/[0.06] transition-all duration-500 border-white/[0.05] hover:border-yellow-500/30"
+        class="glass-card p-8 lg:p-12 cursor-pointer group hover:bg-white/[0.06] transition-all duration-500 border-white/[0.05] hover:border-yellow-500/30"
       >
-        <div class="flex items-center justify-between mb-10">
-          <div class="p-5 bg-yellow-500/10 rounded-[32px] group-hover:scale-110 transition-transform duration-500">
-            <ShieldCheck class="w-12 h-12 text-yellow-500" />
+        <div class="flex items-center justify-between mb-8 lg:mb-10">
+          <div class="p-4 lg:p-5 bg-yellow-500/10 rounded-[24px] lg:rounded-[32px] group-hover:scale-110 transition-transform duration-500">
+            <ShieldCheck class="w-10 h-10 lg:w-12 lg:h-12 text-yellow-500" />
           </div>
           <div class="text-neutral-600 group-hover:text-yellow-500 transition-colors">
-            <ChevronRight class="w-10 h-10" />
+            <ChevronRight class="w-8 h-8 lg:w-10 lg:h-10" />
           </div>
         </div>
-        <h3 class="text-3xl font-black text-white tracking-tight">ChatX Provider</h3>
-        <p class="text-neutral-500 mt-4 font-medium leading-relaxed">Quản lý các tài khoản ChatX.</p>
+        <h3 class="text-2xl lg:text-3xl font-black text-white tracking-tight">ChatX Provider</h3>
+        <p class="text-neutral-500 mt-4 text-sm lg:text-base font-medium leading-relaxed">Quản lý các tài khoản ChatX.</p>
       </div>
 
       <!-- EaseMate Provider Card -->
       <div 
         @click="currentProvider = 'easemate'" 
-        class="glass-card p-12 cursor-pointer group hover:bg-white/[0.06] transition-all duration-500 border-white/[0.05] hover:border-blue-500/30"
+        class="glass-card p-8 lg:p-12 cursor-pointer group hover:bg-white/[0.06] transition-all duration-500 border-white/[0.05] hover:border-blue-500/30"
       >
-        <div class="flex items-center justify-between mb-10">
-          <div class="p-5 bg-blue-500/10 rounded-[32px] group-hover:scale-110 transition-transform duration-500">
-            <Cpu class="w-12 h-12 text-blue-500" />
+        <div class="flex items-center justify-between mb-8 lg:mb-10">
+          <div class="p-4 lg:p-5 bg-blue-500/10 rounded-[24px] lg:rounded-[32px] group-hover:scale-110 transition-transform duration-500">
+            <Cpu class="w-10 h-10 lg:w-12 lg:h-12 text-blue-500" />
           </div>
           <div class="text-neutral-600 group-hover:text-blue-500 transition-colors">
-            <ChevronRight class="w-10 h-10" />
+            <ChevronRight class="w-8 h-8 lg:w-10 lg:h-10" />
           </div>
         </div>
-        <h3 class="text-3xl font-black text-white tracking-tight">EaseMate Provider</h3>
-        <p class="text-neutral-500 mt-4 font-medium leading-relaxed">Cấu hình Device UUID và Identity ID cho các model EaseMate.</p>
+        <h3 class="text-2xl lg:text-3xl font-black text-white tracking-tight">EaseMate Provider</h3>
+        <p class="text-neutral-500 mt-4 text-sm lg:text-base font-medium leading-relaxed">Cấu hình Device UUID và Identity ID cho các model EaseMate.</p>
       </div>
     </div>
 
     <!-- Account List View -->
     <div v-else class="space-y-8 animate-fade-in">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 px-2">
-        <div class="flex items-center gap-6">
+        <div class="flex items-center gap-4 lg:gap-6">
           <button 
             @click="currentProvider = null" 
-            class="p-4 bg-white/[0.03] hover:bg-white/[0.08] text-white rounded-[24px] transition-all border border-white/[0.05]"
+            class="p-3 lg:p-4 bg-white/[0.03] hover:bg-white/[0.08] text-white rounded-[20px] lg:rounded-[24px] transition-all border border-white/[0.05]"
           >
-            <ArrowLeft class="w-6 h-6" />
+            <ArrowLeft class="w-5 h-5 lg:w-6 lg:h-6" />
           </button>
           <div>
-            <h2 class="text-4xl font-black text-white tracking-tight">
+            <h2 class="text-2xl lg:text-4xl font-black text-white tracking-tight">
               {{ currentProvider === 'chatx' ? 'ChatX Accounts' : 'EaseMate Accounts' }}
             </h2>
-            <p class="text-neutral-500 text-xs font-bold uppercase tracking-widest mt-1">
+            <p class="text-neutral-500 text-[10px] lg:text-xs font-bold uppercase tracking-widest mt-1">
               {{ currentProvider === 'chatx' ? 'Danh sách tài khoản Email/Password' : 'Danh sách Device UUID và Identity ID' }}
             </p>
           </div>
         </div>
         <button 
           @click="openAddModal"
-          class="btn-gold px-8 py-4 rounded-2xl flex items-center gap-3"
+          class="btn-gold px-6 lg:px-8 py-3 lg:py-4 rounded-2xl flex items-center justify-center gap-3 w-full md:w-auto"
         >
-          <Plus class="w-6 h-6" />
-          <span class="text-lg">Thêm Tài khoản</span>
+          <Plus class="w-5 h-5 lg:w-6 lg:h-6" />
+          <span class="text-base lg:text-lg">Thêm Tài khoản</span>
         </button>
       </div>
 

@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 class NoCacheStaticFiles(StaticFiles):
@@ -124,6 +124,11 @@ app = FastAPI(
     version=settings.API_VERSION,
     lifespan=lifespan
 )
+
+@app.get("/")
+async def root():
+    """Chuyển hướng từ / sang /admin/."""
+    return RedirectResponse(url="/admin/")
 
 # Thêm CORS middleware
 app.add_middleware(

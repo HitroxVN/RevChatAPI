@@ -2,26 +2,26 @@
   <div class="max-w-5xl mx-auto space-y-12">
     <header class="flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
       <div>
-        <h1 class="text-5xl font-black text-white tracking-tighter">API Keys</h1>
-        <p class="text-neutral-500 mt-2 font-bold uppercase tracking-[0.2em] text-xs">Quản lý các khóa truy cập hệ thống</p>
+        <h1 class="text-3xl lg:text-5xl font-black text-white tracking-tighter">API Keys</h1>
+        <p class="text-neutral-500 mt-2 font-bold uppercase tracking-[0.2em] text-[10px] lg:text-xs">Quản lý các khóa truy cập hệ thống</p>
       </div>
       <button 
         @click="openAddModal"
-        class="btn-gold px-8 py-4 rounded-2xl flex items-center gap-3"
+        class="btn-gold px-6 lg:px-8 py-3 lg:py-4 rounded-2xl flex items-center justify-center gap-3 w-full md:w-auto"
       >
-        <Plus class="w-6 h-6" />
-        <span class="text-lg">Tạo Key Mới</span>
+        <Plus class="w-5 h-5 lg:w-6 lg:h-6" />
+        <span class="text-base lg:text-lg">Tạo Key Mới</span>
       </button>
     </header>
 
     <!-- Stats Card -->
-    <div class="glass-card p-10 flex flex-col md:flex-row items-center gap-10">
-      <div class="p-6 bg-yellow-500/10 rounded-[32px] shadow-inner">
-        <KeyIcon class="w-12 h-12 text-yellow-500" />
+    <div class="glass-card p-6 lg:p-10 flex flex-col md:flex-row items-center gap-6 lg:gap-10">
+      <div class="p-4 lg:p-6 bg-yellow-500/10 rounded-[24px] lg:rounded-[32px] shadow-inner">
+        <KeyIcon class="w-10 h-10 lg:w-12 lg:h-12 text-yellow-500" />
       </div>
-      <div>
-        <div class="text-5xl font-black text-white tabular-nums">{{ keysStore.keys.length }}</div>
-        <div class="text-neutral-500 font-bold uppercase tracking-widest text-xs mt-1">Tổng số API Keys hiện có</div>
+      <div class="text-center md:text-left">
+        <div class="text-3xl lg:text-5xl font-black text-white tabular-nums">{{ keysStore.keys.length }}</div>
+        <div class="text-neutral-500 font-bold uppercase tracking-widest text-[10px] lg:text-xs mt-1">Tổng số API Keys hiện có</div>
       </div>
     </div>
 
@@ -67,7 +67,7 @@
 
         <div class="space-y-4">
           <div class="p-4 bg-black/40 rounded-2xl border border-white/[0.03] font-mono text-sm break-all text-yellow-500/80">
-            {{ key.key }}
+            {{ maskKey(key.key) }}
           </div>
           <p class="text-sm text-neutral-400 leading-relaxed">{{ key.description || 'Không có mô tả cho key này.' }}</p>
         </div>
@@ -143,6 +143,13 @@ const formatDate = (dateStr: string) => {
     month: 'short', 
     day: 'numeric' 
   })
+}
+
+const maskKey = (key: string) => {
+  if (!key) return ''
+  if (key.length <= 8) return '****' + key.slice(-2)
+  const half = Math.floor(key.length / 2)
+  return key.slice(0, half) + '*'.repeat(key.length - half)
 }
 
 const openAddModal = () => {

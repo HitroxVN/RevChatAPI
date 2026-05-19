@@ -1,22 +1,22 @@
 <template>
-  <div class="max-w-6xl mx-auto space-y-12">
+  <div class="max-w-6xl mx-auto space-y-12 pb-20 lg:pb-0">
     <header class="px-2">
-      <h1 class="text-5xl font-black text-white tracking-tighter">Test API</h1>
-      <p class="text-neutral-500 mt-2 font-bold uppercase tracking-[0.2em] text-xs">Thử nghiệm các mô hình AI trong thời gian thực</p>
+      <h1 class="text-3xl lg:text-5xl font-black text-white tracking-tighter">Test API</h1>
+      <p class="text-neutral-500 mt-2 font-bold uppercase tracking-[0.2em] text-[10px] lg:text-xs">Thử nghiệm các mô hình AI trong thời gian thực</p>
     </header>
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10">
       <!-- Request Panel -->
-      <div class="lg:col-span-5 space-y-8 animate-slide-right">
-        <div class="glass-card p-10 space-y-8">
+      <div class="lg:col-span-5 space-y-6 lg:space-y-8 animate-slide-right">
+        <div class="glass-card p-6 lg:p-10 space-y-6 lg:space-y-8">
           <div class="space-y-3">
             <label class="block text-[10px] font-black text-neutral-500 ml-1 uppercase tracking-[0.2em]">Lựa chọn API Key</label>
             <div class="relative group">
               <Key class="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 group-focus-within:text-yellow-500 transition-colors" />
-              <select v-model="selectedKey" class="w-full glass-input py-5 pl-14 pr-12 text-base appearance-none cursor-pointer">
+              <select v-model="selectedKey" class="w-full glass-input py-4 lg:py-5 pl-14 pr-12 text-sm lg:text-base appearance-none cursor-pointer">
                 <option value="" class="bg-neutral-900 text-white">Chọn một API key...</option>
                 <option v-for="key in keysStore.keys" :key="key.key" :value="key.key" class="bg-neutral-900 text-white">
-                  {{ key.name }} ({{ key.key.substring(0, 12) }}...)
+                  {{ key.name }} ({{ maskKey(key.key) }})
                 </option>
               </select>
               <div class="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-600">
@@ -29,7 +29,7 @@
             <label class="block text-[10px] font-black text-neutral-500 ml-1 uppercase tracking-[0.2em]">AI Model</label>
             <div class="relative group">
               <Cpu class="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 group-focus-within:text-blue-500 transition-colors" />
-              <select v-model="selectedModel" class="w-full glass-input py-5 pl-14 pr-12 text-base appearance-none cursor-pointer font-mono" :disabled="testStore.loadingModels">
+              <select v-model="selectedModel" class="w-full glass-input py-4 lg:py-5 pl-14 pr-12 text-sm lg:text-base appearance-none cursor-pointer font-mono" :disabled="testStore.loadingModels">
                 <option v-for="model in testStore.models" :key="model" :value="model" class="bg-neutral-900 text-white">{{ model }}</option>
               </select>
               <div class="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-600">
@@ -43,7 +43,7 @@
             <label class="block text-[10px] font-black text-neutral-500 ml-1 uppercase tracking-[0.2em]">Tin nhắn (User Prompt)</label>
             <textarea 
               v-model="message"
-              class="w-full glass-input p-6 min-h-[220px] resize-none text-lg leading-relaxed" 
+              class="w-full glass-input p-5 lg:p-6 min-h-[180px] lg:min-h-[220px] resize-none text-base lg:text-lg leading-relaxed" 
               placeholder="Bạn muốn hỏi AI điều gì?"
             ></textarea>
           </div>
@@ -51,17 +51,17 @@
           <button 
             @click="handleSend"
             :disabled="testStore.executing || !selectedKey || !message"
-            class="w-full btn-gold py-6 rounded-[24px] text-2xl font-black shadow-2xl flex items-center justify-center gap-4 disabled:opacity-30"
+            class="w-full btn-gold py-5 lg:py-6 rounded-[20px] lg:rounded-[24px] text-xl lg:text-2xl font-black shadow-2xl flex items-center justify-center gap-4 disabled:opacity-30"
           >
-            <Loader2 v-if="testStore.executing" class="w-8 h-8 animate-spin" />
-            <Zap v-else class="w-8 h-8 fill-current" />
+            <Loader2 v-if="testStore.executing" class="w-6 h-6 lg:w-8 lg:h-8 animate-spin" />
+            <Zap v-else class="w-6 h-6 lg:w-8 lg:h-8 fill-current" />
             <span>{{ testStore.executing ? 'ĐANG XỬ LÝ...' : 'THỰC THI' }}</span>
           </button>
         </div>
       </div>
 
       <!-- Response Panel -->
-      <div class="lg:col-span-7 space-y-6 animate-slide-left">
+      <div class="lg:col-span-7 space-y-4 lg:space-y-6 animate-slide-left">
         <div class="flex items-center justify-between px-2">
           <div class="flex items-center gap-3">
             <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
@@ -69,20 +69,20 @@
           </div>
           <div 
             v-if="testStore.lastStatus"
-            class="px-4 py-1.5 rounded-full text-[10px] font-black tracking-widest uppercase border"
+            class="px-3 lg:px-4 py-1 lg:py-1.5 rounded-full text-[9px] lg:text-[10px] font-black tracking-widest uppercase border"
             :class="testStore.lastStatus < 400 ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'"
           >
             HTTP {{ testStore.lastStatus }} {{ testStore.lastStatusText }}
           </div>
         </div>
         
-        <div class="glass-card p-1 min-h-[620px] bg-black/40 flex flex-col">
-          <div class="flex items-center gap-2 p-4 border-b border-white/[0.05]">
-            <div class="w-3 h-3 rounded-full bg-red-500/20"></div>
-            <div class="w-3 h-3 rounded-full bg-yellow-500/20"></div>
-            <div class="w-3 h-3 rounded-full bg-green-500/20"></div>
+        <div class="glass-card p-1 min-h-[400px] lg:min-h-[620px] bg-black/40 flex flex-col">
+          <div class="flex items-center gap-2 p-3 lg:p-4 border-b border-white/[0.05]">
+            <div class="w-2.5 h-2.5 lg:w-3 lg:h-3 rounded-full bg-red-500/20"></div>
+            <div class="w-2.5 h-2.5 lg:w-3 lg:h-3 rounded-full bg-yellow-500/20"></div>
+            <div class="w-2.5 h-2.5 lg:w-3 lg:h-3 rounded-full bg-green-500/20"></div>
           </div>
-          <div class="flex-1 p-8 font-mono text-sm overflow-auto max-h-[700px] relative custom-scrollbar">
+          <div class="flex-1 p-5 lg:p-8 font-mono text-xs lg:text-sm overflow-auto max-h-[500px] lg:max-h-[700px] relative custom-scrollbar">
             <pre 
               class="whitespace-pre-wrap break-all selection:bg-yellow-500 selection:text-black"
               :class="{
@@ -93,8 +93,8 @@
             >{{ formattedResponse }}</pre>
             
             <div v-if="!testStore.lastResponse && !testStore.executing" class="absolute inset-0 flex flex-col items-center justify-center opacity-20 group">
-              <MessageSquare class="w-24 h-24 mb-6 text-neutral-500 group-hover:scale-110 transition-transform duration-700" />
-              <p class="font-black uppercase tracking-[0.4em] text-sm text-neutral-500">Waiting for request</p>
+              <MessageSquare class="w-16 h-16 lg:w-24 lg:h-24 mb-6 text-neutral-500 group-hover:scale-110 transition-transform duration-700" />
+              <p class="font-black uppercase tracking-[0.4em] text-[10px] lg:text-sm text-neutral-500">Waiting for request</p>
             </div>
           </div>
         </div>
@@ -134,6 +134,13 @@ const formattedResponse = computed(() => {
   if (typeof testStore.lastResponse === 'string') return testStore.lastResponse
   return JSON.stringify(testStore.lastResponse, null, 2)
 })
+
+const maskKey = (key: string) => {
+  if (!key) return ''
+  if (key.length <= 8) return '****' + key.slice(-2)
+  const half = Math.floor(key.length / 2)
+  return key.slice(0, half) + '*'.repeat(key.length - half)
+}
 
 const handleSend = async () => {
   if (!selectedKey.value || !message.value) return

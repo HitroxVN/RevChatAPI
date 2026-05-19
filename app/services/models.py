@@ -232,56 +232,56 @@ EASEMATE_MODEL_MAPPING = {
     "gemini-3.0-flash": 17
 }
 
+CHATX_MODEL_MAPPING = {
+    "deepseek-v3-flash": "deepseek_flash",
+    "gpt-3.5-turbo": "gpt3"
+}
+
 def get_available_models() -> List[Dict[str, Any]]:
     """Lấy danh sách các model hiện có cho tính tương thích OpenAI."""
     service = get_model_service()
     models = service.get_models()
     
-    if not models:
-        # Dự phòng cho các giá trị mặc định (fallback)
-        now = int(time.time())
-        fallback_list = [
-            {
-                "id": "test/saigon-incom",
-                "object": "model",
-                "created": now,
-                "owned_by": "saigon-incom"
-            },
-            {
-                "id": "chatx/deepseek_flash",
-                "object": "model",
-                "created": now,
-                "owned_by": "chatx"
-            },
-            {
-                "id": "chatx/gpt3",
-                "object": "model",
-                "created": now,
-                "owned_by": "chatx"
-            }
-        ]
+    now = int(time.time())
+    available_list = []
+    
+    # Thêm model Saigon Incom (mặc định)
+    available_list.append({
+        "id": "test/saigon-incom",
+        "object": "model",
+        "created": now,
+        "owned_by": "saigon-incom"
+    })
+    
+    # Thêm các model ChatX với ID thân thiện
+    for name in CHATX_MODEL_MAPPING.keys():
+        available_list.append({
+            "id": f"chatx/{name}",
+            "object": "model",
+            "created": now,
+            "owned_by": "chatx"
+        })
         
-        # Thêm các model EaseMate với ID thân thiện
-        for name, mid in EASEMATE_MODEL_MAPPING.items():
-            fallback_list.append({
-                "id": f"easemate/{name}",
+    # Thêm các model EaseMate với ID thân thiện
+    for name in EASEMATE_MODEL_MAPPING.keys():
+        available_list.append({
+            "id": f"easemate/{name}",
+            "object": "model",
+            "created": now,
+            "owned_by": "easemate"
+        })
+        
+    # Nếu có model trong config.json, ưu tiên chúng
+    if models:
+        for m in models:
+            available_list.append({
+                "id": m["model_id"],
                 "object": "model",
                 "created": now,
-                "owned_by": "easemate"
+                "owned_by": m["provider"]
             })
             
-        return fallback_list
-    
-    # Định dạng cho phản hồi OpenAI
-    return [
-        {
-            "id": m["model_id"],
-            "object": "model",
-            "created": int(time.time()),
-            "owned_by": m["provider"]
-        }
-        for m in models
-    ]
+    return available_list
 
 
 from app.providers.chatx import ChatXProvider
@@ -296,12 +296,28 @@ easemate_provider = EaseMateProvider()
 async def dispatch_message(model: str, message: str, session_id: str = None) -> Tuple[AsyncGenerator[str, None], str]:
     """Điều phối tin nhắn đến backend service phù hợp dựa trên tên model."""
     model_lower = model.lower()
+    
+    # Xử lý mapping model trước khi gửi đi
+    target_model = model
+    
     if model == "test/saigon-incom":
         return await saigon_provider.generate_stream(message, model, session_id)
+        
     elif "easemate" in model_lower:
         return await easemate_provider.generate_stream(message, model, session_id)
-    elif any(k in model_lower for k in ["deepseek", "chatx", "gpt", "claude"]):
-        return await chatx_provider.generate_stream(message, model, session_id)
+        
+    elif "chatx" in model_lower:
+        model_name = model.split("/")[-1] if "/" in model else model
+        if model_name in CHATX_MODEL_MAPPING:
+            target_model = f"chatx/{CHATX_MODEL_MAPPING[model_name]}"
+        return await chatx_provider.generate_stream(message, target_model, session_id)
+        
+    # Fallback cho các trường hợp không có prefix
+    elif any(k in model_lower for k in ["deepseek", "gpt", "claude"]):
+        if model_lower in CHATX_MODEL_MAPPING:
+            target_model = f"chatx/{CHATX_MODEL_MAPPING[model_lower]}"
+        return await chatx_provider.generate_stream(message, target_model, session_id)
+        
     else:
         raise HTTPException(
             status_code=400,
