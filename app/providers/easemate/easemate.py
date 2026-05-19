@@ -18,6 +18,7 @@ class EaseMateProvider(MultiAccountProvider):
         
         self.device_uuid = None
         self.identity_id = None
+        self.token = None
         self.current_session_id = None
 
     @property
@@ -36,6 +37,7 @@ class EaseMateProvider(MultiAccountProvider):
         try:
             self.device_uuid = acc.get("device_uuid")
             self.identity_id = acc.get("identity_id")
+            self.token = acc.get("token")
             self.current_session_id = None # Reset session for new account
             
             if not self.device_uuid or not self.identity_id:
@@ -56,11 +58,14 @@ class EaseMateProvider(MultiAccountProvider):
             if "providers" not in data:
                 data["providers"] = {}
                 
-            # Cập nhật phần easemate
-            data["providers"]["easemate"] = {
-                "device_uuid": self.device_uuid,
-                "identity_id": self.identity_id
-            }
+            # Cập nhật phần easemate (Chỉ dùng cho guest account mới đăng ký)
+            data["providers"]["easemate"] = [
+                {
+                    "device_uuid": self.device_uuid,
+                    "identity_id": self.identity_id,
+                    "token": self.token
+                }
+            ]
             
             with open(self.config_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
@@ -128,6 +133,9 @@ class EaseMateProvider(MultiAccountProvider):
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+
         try:
             response = await self.client.post(
                 "https://api.easemate.ai/api2/task/identity_id",
@@ -174,6 +182,9 @@ class EaseMateProvider(MultiAccountProvider):
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+
         try:
             response = await self.client.post(
                 "https://api.easemate.ai/api2/task/create_pure_session",
@@ -189,17 +200,19 @@ class EaseMateProvider(MultiAccountProvider):
             
         return 1000557976 # Fallback session ID
 
-    async def verify_identity(self, device_uuid: str, identity_id: str) -> Tuple[bool, str]:
+    async def verify_identity(self, device_uuid: str, identity_id: str, token: str = None) -> Tuple[bool, str]:
         """Kiểm tra tính hợp lệ của device_uuid và identity_id."""
         payload = {"model_id": 6}
         
-        # Tạo signature tạm thời với cặp ID cần kiểm tra
+        # Lưu ID cũ
         old_uuid = self.device_uuid
         old_ident = self.identity_id
+        old_token = self.token
         
         try:
             self.device_uuid = device_uuid
             self.identity_id = identity_id
+            self.token = token
             
             sign, timestamp = await self._get_signature(payload)
             
@@ -222,6 +235,9 @@ class EaseMateProvider(MultiAccountProvider):
                 "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
 
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
+
             response = await self.client.post(
                 "https://api.easemate.ai/api2/task/create_pure_session",
                 headers=headers,
@@ -235,10 +251,15 @@ class EaseMateProvider(MultiAccountProvider):
             
             if code == 200:
                 return True, "Khóa hợp lệ"
-            elif code == 4007 or "login" in message.lower():
-                return False, "Khóa không hợp lệ hoặc đã bị chặn (Yêu cầu đăng nhập)"
-            else:
-                return False, f"Lỗi từ máy chủ ({code}): {message}"
+            
+            error_msg = "Khóa không hợp lệ hoặc đã bị chặn (Yêu cầu đăng nhập)" if (code == 4007 or "login" in message.lower()) else f"Lỗi từ máy chủ ({code}): {message}"
+            self._mark_account_failed({
+                "device_uuid": device_uuid,
+                "identity_id": identity_id,
+                "token": token
+            }, duration=86400)
+            
+            return False, error_msg
                 
         except Exception as e:
             return False, f"Lỗi kết nối: {str(e)}"
@@ -246,6 +267,74 @@ class EaseMateProvider(MultiAccountProvider):
             # Khôi phục lại ID cũ
             self.device_uuid = old_uuid
             self.identity_id = old_ident
+            self.token = old_token
+
+    async def query_permission(self, device_uuid: str, identity_id: str, token: str = None) -> Dict[str, Any]:
+        """Lấy thông tin hạn mức và lượt dùng còn lại của tài khoản."""
+        payload = {}
+        
+        # Lưu ID cũ
+        old_uuid = self.device_uuid
+        old_ident = self.identity_id
+        old_token = self.token
+
+        try:
+            self.device_uuid = device_uuid
+            self.identity_id = identity_id
+            self.token = token
+            
+            sign, timestamp = await self._get_signature(payload)
+            
+            headers = {
+                "accept": "application/json, text/plain, */*",
+                "client-name": "chatpdf",
+                "client-type": "web",
+                "content-type": "application/json;charset=UTF-8",
+                "device-platform": "Windows,Chrome",
+                "device-type": "web",
+                "device-uuid": device_uuid,
+                "identity-id": identity_id,
+                "lang": "en",
+                "language": "en-US",
+                "origin": "https://www.easemate.ai",
+                "referer": "https://www.easemate.ai/",
+                "sign": sign,
+                "site": "www.easemate.ai",
+                "timestamp": timestamp,
+                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
+
+            response = await self.client.post(
+                "https://api.easemate.ai/api2/task/query_permission",
+                headers=headers,
+                json=payload,
+                timeout=10.0
+            )
+            
+            res_json = response.json()
+            if res_json.get("code") == 200 and "data" in res_json:
+                return {
+                    "success": True,
+                    "data": res_json["data"]
+                }
+            return {
+                "success": False,
+                "message": res_json.get("message", "Không thể lấy thông tin hạn mức")
+            }
+        except Exception as e:
+            logger.error(f"Lỗi truy vấn hạn mức EaseMate: {e}")
+            return {
+                "success": False,
+                "message": f"Lỗi kết nối: {str(e)}"
+            }
+        finally:
+            # Khôi phục lại ID cũ
+            self.device_uuid = old_uuid
+            self.identity_id = old_ident
+            self.token = old_token
 
     def _get_current_session_id(self, default_id: str = None) -> str:
         return str(self.current_session_id) if self.current_session_id else (default_id or "new")
@@ -311,6 +400,9 @@ class EaseMateProvider(MultiAccountProvider):
             "timestamp": timestamp,
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
+
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
 
         try:
             async with self.client.stream(

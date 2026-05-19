@@ -6,12 +6,17 @@ export interface ChatXAccount {
   id: string
   email: string
   auto_clear_history: boolean
+  note?: string
+  is_failed?: boolean
 }
 
 export interface EaseMateAccount {
   id: string
   device_uuid: string
   identity_id: string
+  token?: string
+  note?: string
+  is_failed?: boolean
 }
 
 export const useAccountsStore = defineStore('accounts', () => {
@@ -60,7 +65,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     }
   }
 
-  async function saveChatXAccount(payload: { id?: string | null, email: string, password?: string, auto_clear_history: boolean }) {
+  async function saveChatXAccount(payload: { id?: string | null, email: string, password?: string, auto_clear_history: boolean, note?: string }) {
     try {
       const response = await apiFetch('/chatx/account/save', {
         method: 'POST',
@@ -79,7 +84,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     }
   }
 
-  async function saveEaseMateAccount(payload: { id?: string | null, device_uuid: string, identity_id: string }) {
+  async function saveEaseMateAccount(payload: { id?: string | null, device_uuid: string, identity_id: string, token?: string, note?: string }) {
     try {
       const response = await apiFetch('/easemate/account/save', {
         method: 'POST',
@@ -117,11 +122,11 @@ export const useAccountsStore = defineStore('accounts', () => {
     }
   }
 
-  async function verifyEaseMate(device_uuid: string, identity_id: string) {
+  async function verifyEaseMate(device_uuid: string, identity_id: string, token?: string) {
     try {
       const response = await apiFetch('/easemate/account/verify', {
         method: 'POST',
-        body: JSON.stringify({ device_uuid, identity_id })
+        body: JSON.stringify({ device_uuid, identity_id, token })
       })
       if (response) {
         return await response.json()

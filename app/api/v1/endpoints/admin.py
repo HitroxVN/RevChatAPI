@@ -61,7 +61,8 @@ async def get_chatx_accounts():
                         "id": "default",
                         "email": chatx_config.get("email", ""),
                         "password": chatx_config.get("password", ""),
-                        "auto_clear_history": chatx_config.get("auto_clear_history", False)
+                        "auto_clear_history": chatx_config.get("auto_clear_history", False),
+                        "note": chatx_config.get("note", "")
                     }
                     accounts = [account]
     except Exception:
@@ -69,7 +70,10 @@ async def get_chatx_accounts():
     
     return {
         "success": True,
-        "accounts": accounts
+        "accounts": [
+            {**acc, "is_failed": chatx_provider._is_account_failed(acc)}
+            for acc in accounts
+        ]
     }
 
 @router.post("/chatx/account/save")
@@ -78,6 +82,7 @@ async def save_chatx_account(data: Dict[str, Any] = Body(...)):
     email = data.get("email")
     password = data.get("password")
     auto_clear_history = data.get("auto_clear_history", False)
+    note = data.get("note", "")
     
     try:
         config_data = {}
@@ -115,6 +120,7 @@ async def save_chatx_account(data: Dict[str, Any] = Body(...)):
                     if password:
                         acc["password"] = password
                     acc["auto_clear_history"] = auto_clear_history
+                    acc["note"] = note
                     found = True
                     break
             if not found:
@@ -126,7 +132,8 @@ async def save_chatx_account(data: Dict[str, Any] = Body(...)):
                 "id": str(uuid.uuid4()),
                 "email": email,
                 "password": password,
-                "auto_clear_history": auto_clear_history
+                "auto_clear_history": auto_clear_history,
+                "note": note
             }
             accounts.append(new_acc)
         
@@ -183,7 +190,9 @@ async def get_easemate_accounts():
                     account = {
                         "id": "default",
                         "device_uuid": easemate_config.get("device_uuid", ""),
-                        "identity_id": easemate_config.get("identity_id", "")
+                        "identity_id": easemate_config.get("identity_id", ""),
+                        "token": easemate_config.get("token", ""),
+                        "note": easemate_config.get("note", "")
                     }
                     accounts = [account]
     except Exception:
@@ -191,7 +200,10 @@ async def get_easemate_accounts():
     
     return {
         "success": True,
-        "accounts": accounts
+        "accounts": [
+            {**acc, "is_failed": easemate_provider._is_account_failed(acc)}
+            for acc in accounts
+        ]
     }
 
 @router.post("/easemate/account/save")
@@ -199,6 +211,8 @@ async def save_easemate_account(data: Dict[str, Any] = Body(...)):
     account_id = data.get("id")
     device_uuid = data.get("device_uuid")
     identity_id = data.get("identity_id")
+    token = data.get("token")
+    note = data.get("note", "")
     
     try:
         config_data = {}
@@ -218,7 +232,8 @@ async def save_easemate_account(data: Dict[str, Any] = Body(...)):
                 config_data["providers"]["easemate"] = [{
                     "id": "default",
                     "device_uuid": old.get("device_uuid", ""),
-                    "identity_id": old.get("identity_id", "")
+                    "identity_id": old.get("identity_id", ""),
+                    "token": old.get("token", "")
                 }]
             else:
                 config_data["providers"]["easemate"] = []
@@ -231,6 +246,8 @@ async def save_easemate_account(data: Dict[str, Any] = Body(...)):
                 if acc.get("id") == account_id:
                     acc["device_uuid"] = device_uuid
                     acc["identity_id"] = identity_id
+                    acc["token"] = token
+                    acc["note"] = note
                     found = True
                     break
             if not found:
@@ -240,7 +257,9 @@ async def save_easemate_account(data: Dict[str, Any] = Body(...)):
             new_acc = {
                 "id": str(uuid.uuid4()),
                 "device_uuid": device_uuid,
-                "identity_id": identity_id
+                "identity_id": identity_id,
+                "token": token,
+                "note": note
             }
             accounts.append(new_acc)
         
@@ -251,6 +270,7 @@ async def save_easemate_account(data: Dict[str, Any] = Body(...)):
             first = accounts[0]
             easemate_provider.device_uuid = first.get("device_uuid")
             easemate_provider.identity_id = first.get("identity_id")
+            easemate_provider.token = first.get("token")
             
         return {"success": True}
     except Exception as e:
@@ -283,11 +303,23 @@ async def delete_easemate_account(data: Dict[str, Any] = Body(...)):
 async def verify_easemate_account(data: Dict[str, Any] = Body(...)):
     device_uuid = data.get("device_uuid")
     identity_id = data.get("identity_id")
+    token = data.get("token")
     
     if not device_uuid or not identity_id:
         return {"success": False, "message": "Vui lòng nhập đầy đủ Device UUID và Identity ID"}
     
-    success, message = await easemate_provider.verify_identity(device_uuid, identity_id)
+    success, message = await easemate_provider.verify_identity(device_uuid, identity_id, token)
+    
+    if success:
+        # Nếu verify thành công, lấy thêm thông tin hạn mức
+        perm_res = await easemate_provider.query_permission(device_uuid, identity_id, token)
+        if perm_res.get("success"):
+            return {
+                "success": True, 
+                "message": message,
+                "usage": perm_res.get("data")
+            }
+            
     return {"success": success, "message": message}
 
 @router.get("/easemate/script")
