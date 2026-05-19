@@ -26,11 +26,29 @@
           </div>
 
           <div class="space-y-3">
+            <label class="block text-[10px] font-black text-neutral-500 ml-1 uppercase tracking-[0.2em]">Provider</label>
+            <div class="relative group">
+              <LayoutGrid class="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 group-focus-within:text-purple-500 transition-colors" />
+              <select v-model="selectedProvider" class="w-full glass-input py-4 lg:py-5 pl-14 pr-12 text-sm lg:text-base appearance-none cursor-pointer" :disabled="testStore.loadingModels">
+                <option v-for="provider in availableProviders" :key="provider" :value="provider" class="bg-neutral-900 text-white capitalize">
+                  {{ provider }}
+                </option>
+              </select>
+              <div class="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-600">
+                <Loader2 v-if="testStore.loadingModels" class="w-5 h-5 animate-spin" />
+                <ChevronDown v-else class="w-6 h-6" />
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-3">
             <label class="block text-[10px] font-black text-neutral-500 ml-1 uppercase tracking-[0.2em]">AI Model</label>
             <div class="relative group">
               <Cpu class="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-neutral-500 group-focus-within:text-blue-500 transition-colors" />
-              <select v-model="selectedModel" class="w-full glass-input py-4 lg:py-5 pl-14 pr-12 text-sm lg:text-base appearance-none cursor-pointer font-mono" :disabled="testStore.loadingModels">
-                <option v-for="model in testStore.models" :key="model" :value="model" class="bg-neutral-900 text-white">{{ model }}</option>
+              <select v-model="selectedModel" class="w-full glass-input py-4 lg:py-5 pl-14 pr-12 text-sm lg:text-base appearance-none cursor-pointer font-mono" :disabled="testStore.loadingModels || !selectedProvider">
+                <option v-for="model in filteredModels" :key="model" :value="model" class="bg-neutral-900 text-white">
+                  {{ model.includes('/') ? model.split('/')[1] : model }}
+                </option>
               </select>
               <div class="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-600">
                 <Loader2 v-if="testStore.loadingModels" class="w-5 h-5 animate-spin" />
@@ -105,7 +123,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { Zap, Loader2, MessageSquare, ChevronDown, Key, Cpu } from 'lucide-vue-next'
+import { Zap, Loader2, MessageSquare, ChevronDown, Key, Cpu, LayoutGrid } from 'lucide-vue-next'
 import { useTestStore } from '@/stores/testStore'
 import { useKeysStore } from '@/stores/keysStore'
 
@@ -113,16 +131,51 @@ const testStore = useTestStore()
 const keysStore = useKeysStore()
 
 const selectedKey = ref('')
-const selectedModel = ref('gpt-4o-mini')
+const selectedProvider = ref('')
+const selectedModel = ref('')
 const message = ref('')
 
-watch(() => testStore.models, (newModels) => {
+// Lấy danh sách provider từ các model id (format: provider/model_id)
+const availableProviders = computed(() => {
+  const providers = new Set<string>()
+  testStore.models.forEach(model => {
+    if (model.includes('/')) {
+      providers.add(model.split('/')[0])
+    } else {
+      providers.add('other')
+    }
+  })
+  return Array.from(providers).sort()
+})
+
+// Lọc danh sách model theo provider đã chọn
+const filteredModels = computed(() => {
+  if (!selectedProvider.value) return []
+  return testStore.models.filter(model => {
+    if (selectedProvider.value === 'other') {
+      return !model.includes('/')
+    }
+    return model.startsWith(selectedProvider.value + '/')
+  })
+})
+
+// Tự động chọn provider đầu tiên khi có danh sách
+watch(availableProviders, (newProviders) => {
+  if (newProviders.length > 0 && !selectedProvider.value) {
+    selectedProvider.value = newProviders[0]
+  }
+}, { immediate: true })
+
+// Tự động chọn model đầu tiên khi đổi provider
+watch(filteredModels, (newModels) => {
   if (newModels.length > 0) {
     if (!selectedModel.value || !newModels.includes(selectedModel.value)) {
       selectedModel.value = newModels[0]
     }
+  } else {
+    selectedModel.value = ''
   }
-}, { immediate: true })
+})
 
 onMounted(async () => {
   await testStore.loadModels()

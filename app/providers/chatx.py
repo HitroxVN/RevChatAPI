@@ -5,23 +5,22 @@ import json
 import os
 import time
 import uuid
-from typing import Tuple, AsyncGenerator
+from typing import Tuple, AsyncGenerator, List, Dict, Any
 from app.core.config import settings
+from app.core.logging import logger
 import asyncio
-from app.providers.base import BaseProvider
+from app.providers.base import MultiAccountProvider
 
-class ChatXProvider(BaseProvider):
+class ChatXProvider(MultiAccountProvider):
     def __init__(self):
+        super().__init__(provider_name="chatx")
         self.base_url = "https://chatx.ai"
-        self._client = None
         self.csrf_token = None
         self.user_id = None
         self.chats_id = None
         self.auto_clear_history = False
-        self.config_path = "config.json"
-        
-        # Sử dụng lock cho xác thực để tránh tình trạng tranh chấp (race conditions)
-        self._auth_lock = asyncio.Lock()
+        self.email = None
+        self.password = None
 
     @property
     def client(self):
@@ -34,37 +33,30 @@ class ChatXProvider(BaseProvider):
                     "Referer": f"{self.base_url}/deepseek"
                 }
             )
-            self._load_chatx_config()
         return self._client
 
-    def _load_chatx_config(self):
-        """Tải thông tin đăng nhập và token ChatX từ config.json."""
+    async def _setup_account(self, acc: Dict[str, Any]) -> bool:
+        """Thiết lập thông tin tài khoản ChatX."""
         try:
-            if os.path.exists(self.config_path):
-                with open(self.config_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    
-                if isinstance(data, dict) and "providers" in data and "chatx" in data["providers"]:
-                    chatx_config = data["providers"]["chatx"]
-                    
-                    target_config = None
-                    if isinstance(chatx_config, list) and len(chatx_config) > 0:
-                        target_config = chatx_config[0]
-                    elif isinstance(chatx_config, dict):
-                        target_config = chatx_config
-                        
-                    if target_config:
-                        self.email = target_config.get("email")
-                        self.password = target_config.get("password")
-                        self.auto_clear_history = target_config.get("auto_clear_history", False)
-                        if "cookies" in target_config:
-                            # Tải cookies vào httpx client
-                            for k, v in target_config["cookies"].items():
-                                self.client.cookies.set(k, v, domain="chatx.ai")
+            self.email = acc.get("email")
+            self.password = acc.get("password")
+            self.auto_clear_history = acc.get("auto_clear_history", False)
+            
+            # Reset client cookies for each account to avoid cross-contamination
+            self.client.cookies.clear()
+            if "cookies" in acc:
+                for k, v in acc["cookies"].items():
+                    self.client.cookies.set(k, v, domain="chatx.ai")
+            
+            # Reset tokens to force re-authentication for this account
+            self.csrf_token = None
+            self.user_id = None
+            self.chats_id = None
+            
+            return True
         except Exception as e:
-            print(f"Lỗi khi tải cấu hình ChatX: {e}")
-            self.email = None
-            self.password = None
+            logger.error(f"Lỗi khi thiết lập tài khoản ChatX {self.email}: {e}")
+            return False
 
     def _save_chatx_token(self):
         """Lưu cookies ChatX ngược lại vào config.json."""
@@ -106,7 +98,7 @@ class ChatXProvider(BaseProvider):
                 with open(self.config_path, 'w', encoding='utf-8') as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"Lỗi khi lưu token ChatX: {e}")
+            logger.error(f"Lỗi khi lưu token ChatX: {e}")
 
     async def get_initial_token(self) -> bool:
         try:
@@ -130,7 +122,7 @@ class ChatXProvider(BaseProvider):
             
             return self.csrf_token is not None
         except Exception as e:
-            print(f"Lỗi khi lấy token: {e}")
+            logger.error(f"Lỗi khi lấy token: {e}")
             return False
 
     async def login(self) -> bool:
@@ -140,7 +132,7 @@ class ChatXProvider(BaseProvider):
         if not self.csrf_token:
             await self.get_initial_token()
             
-        print(f"[*] Đang đăng nhập vào ChatX với email {self.email}...")
+        logger.info(f"[*] Đang đăng nhập vào ChatX với email {self.email}...")
         payload = {
             "_token": self.csrf_token,
             "email": self.email,
@@ -158,9 +150,9 @@ class ChatXProvider(BaseProvider):
                     self._save_chatx_token() 
                     return True
                 else:
-                    print(f"[-] Đăng nhập ChatX thất bại: {data.get('message')}")
+                    logger.warning(f"[-] Đăng nhập ChatX thất bại: {data.get('message')}")
         except Exception as e:
-            print(f"Lỗi đăng nhập: {e}")
+            logger.error(f"Lỗi đăng nhập: {e}")
         return False
 
     async def start_new_chat(self) -> bool:
@@ -191,7 +183,7 @@ class ChatXProvider(BaseProvider):
                 
                 return self.chats_id is not None
         except Exception as e:
-            print(f"Lỗi khi bắt đầu chat: {e}")
+            logger.error(f"Lỗi khi bắt đầu chat: {e}")
         return False
 
     async def clear_history(self):
@@ -209,13 +201,10 @@ class ChatXProvider(BaseProvider):
         except:
             pass
 
-    async def generate_stream(self, message: str, model: str = "chatx/deepseek_flash", session_id: str = None) -> Tuple[AsyncGenerator[str, None], str]:
-        """Triển khai BaseProvider.generate_stream."""
-        # ChatX không sử dụng session_ids bên ngoài theo cách tương tự, nhưng chúng tôi trả về một cái chung chung.
-        generator = self._stream_message(message, model)
-        return generator, "chatx_session"
+    def _get_current_session_id(self, default_id: str = None) -> str:
+        return f"chatx_{self.email}" if self.email else (default_id or "chatx_session")
 
-    async def _stream_message(self, message: str, model: str) -> AsyncGenerator[str, None]:
+    async def _get_stream(self, message: str, model: str, session_id: str = None) -> AsyncGenerator[str, None]:
         """Generator nội bộ trả về các response chunk một cách bất đồng bộ."""
         if "/" in model:
             model = model.split("/")[-1]
@@ -233,7 +222,7 @@ class ChatXProvider(BaseProvider):
                 await self.clear_history()
             
             if not await self.start_new_chat():
-                print("[*] Không thể bắt đầu chat, đang thử đăng nhập...")
+                logger.info("[*] Không thể bắt đầu chat, đang thử đăng nhập...")
                 if await self.login():
                     if not await self.start_new_chat():
                         raise Exception("Không thể bắt đầu session chat sau khi đăng nhập")
@@ -308,7 +297,7 @@ class ChatXProvider(BaseProvider):
                             except json.JSONDecodeError:
                                 raw_unparsed.append(content)
                             except Exception as e:
-                                print(f"[*] Lỗi khi parse stream chunk: {e}")
+                                logger.error(f"[*] Lỗi khi parse stream chunk: {e}")
                                 
             if not has_yielded:
                 if raw_unparsed:

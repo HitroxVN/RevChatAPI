@@ -4,6 +4,7 @@ import uuid
 import time
 import sys
 from typing import Tuple, AsyncGenerator
+from app.core.logging import logger
 from app.core.config import settings
 from app.providers.base import BaseProvider
 
@@ -15,7 +16,8 @@ class SaigonProvider(BaseProvider):
     def __init__(self):
         self._client = None
         
-    def get_client(self) -> httpx.AsyncClient:
+    @property
+    def client(self) -> httpx.AsyncClient:
         if self._client is None:
             self._client = httpx.AsyncClient(timeout=httpx.Timeout(float(settings.REQUEST_TIMEOUT), connect=10.0))
         return self._client
@@ -52,8 +54,7 @@ class SaigonProvider(BaseProvider):
         }
         
         try:
-            client = self.get_client()
-            response = await client.post(url, json=payload, headers=headers)
+            response = await self.client.post(url, json=payload, headers=headers)
             response.raise_for_status()
             data = response.json()
             

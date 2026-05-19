@@ -4,22 +4,21 @@ import os
 import asyncio
 import httpx
 import secrets
-from typing import Tuple, AsyncGenerator, Dict, Any
-from app.providers.base import BaseProvider
+from typing import Tuple, AsyncGenerator, Dict, Any, List
+from app.providers.base import BaseProvider, MultiAccountProvider
 from app.core.config import settings
 from app.core.logging import logger
 
-class EaseMateProvider(BaseProvider):
+class EaseMateProvider(MultiAccountProvider):
     def __init__(self):
+        super().__init__(provider_name="easemate")
         self.base_dir = os.path.dirname(__file__)
-        self.config_path = "config.json"
         self.sign_js_path = os.path.join(self.base_dir, "sign.js")
         self.node_path = settings.NODE_PATH
         
         self.device_uuid = None
         self.identity_id = None
-        self._client = None
-        self._load_config()
+        self.current_session_id = None
 
     @property
     def client(self) -> httpx.AsyncClient:
@@ -32,23 +31,20 @@ class EaseMateProvider(BaseProvider):
             )
         return self._client
 
-    def _load_config(self):
-        if os.path.exists(self.config_path):
-            try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    easemate_config = data.get("providers", {}).get("easemate", {})
-                    
-                    if isinstance(easemate_config, list) and len(easemate_config) > 0:
-                        # Use the first account as default
-                        first = easemate_config[0]
-                        self.device_uuid = first.get("device_uuid")
-                        self.identity_id = first.get("identity_id")
-                    elif isinstance(easemate_config, dict):
-                        self.device_uuid = easemate_config.get("device_uuid")
-                        self.identity_id = easemate_config.get("identity_id")
-            except Exception as e:
-                logger.error(f"Lỗi khi tải cấu hình EaseMate từ config.json: {e}")
+    async def _setup_account(self, acc: Dict[str, Any]) -> bool:
+        """Thiết lập thông tin tài khoản EaseMate."""
+        try:
+            self.device_uuid = acc.get("device_uuid")
+            self.identity_id = acc.get("identity_id")
+            self.current_session_id = None # Reset session for new account
+            
+            if not self.device_uuid or not self.identity_id:
+                await self._ensure_identity()
+            
+            return True
+        except Exception as e:
+            logger.error(f"Lỗi khi thiết lập tài khoản EaseMate: {e}")
+            return False
 
     def _save_config(self):
         try:
@@ -251,31 +247,32 @@ class EaseMateProvider(BaseProvider):
             self.device_uuid = old_uuid
             self.identity_id = old_ident
 
-    async def generate_stream(self, message: str, model: str, session_id: str = None) -> Tuple[AsyncGenerator[str, None], str]:
-        # Phân tích model_id từ tên model (ví dụ: easemate/gemini-2.5-flash hoặc easemate/5)
+    def _get_current_session_id(self, default_id: str = None) -> str:
+        return str(self.current_session_id) if self.current_session_id else (default_id or "new")
+
+    async def _get_stream(self, message: str, model: str, session_id: str = None) -> AsyncGenerator[str, None]:
+        # Phân tích model_id từ tên model
         model_id = 6 # Mặc định Gemini 2.0 Flash
-        
         try:
-            if "/" in model:
-                model_name = model.split("/")[-1]
-                
-                # Kiểm tra trong mapping trước
-                from app.services.models import EASEMATE_MODEL_MAPPING
-                if model_name in EASEMATE_MODEL_MAPPING:
-                    model_id = EASEMATE_MODEL_MAPPING[model_name]
-                elif model_name.isdigit():
-                    model_id = int(model_name)
+            model_name = model.split("/")[-1] if "/" in model else model
+            from app.services.models import EASEMATE_MODEL_MAPPING
+            if model_name in EASEMATE_MODEL_MAPPING:
+                model_id = EASEMATE_MODEL_MAPPING[model_name]
+            elif model_name.isdigit():
+                model_id = int(model_name)
         except Exception as e:
             logger.error(f"Lỗi khi phân tích model_id '{model}': {e}")
-            
-        # Nếu session_id không hợp lệ, tạo mới
-        if not session_id or not str(session_id).isdigit():
-            session_id_int = await self._create_session(model_id)
-        else:
-            session_id_int = int(session_id)
 
-        generator = self._stream_chat(message, model_id, session_id_int)
-        return generator, str(session_id_int)
+        # Luôn tạo session mới nếu session_id không hợp lệ hoặc không có session hiện tại
+        if not self.current_session_id or (session_id and str(session_id) != str(self.current_session_id)):
+            if session_id and str(session_id).isdigit():
+                self.current_session_id = int(session_id)
+            else:
+                self.current_session_id = await self._create_session(model_id)
+                logger.info(f"[*] Đã tạo session mới cho EaseMate: {self.current_session_id}")
+
+        async for chunk in self._stream_chat(message, model_id, self.current_session_id):
+            yield chunk
 
     async def _stream_chat(self, message: str, model_id: int, session_id: int) -> AsyncGenerator[str, None]:
         await self._ensure_identity()
@@ -328,25 +325,52 @@ class EaseMateProvider(BaseProvider):
                     raise Exception(f"EaseMate API error {response.status_code}: {error_text.decode()}")
 
                 async for line in response.aiter_lines():
-                    if line.startswith("data:"):
-                        data_str = line[5:].strip()
-                        if data_str == "[DONE]":
-                            break
+                    if not line:
+                        continue
+                    
+                    if not line.startswith("data:"):
+                        # Nếu dòng không bắt đầu bằng data:, có thể là lỗi định dạng JSON trực tiếp
                         try:
-                            data_json = json.loads(data_str)
-                            if 'data' in data_json:
-                                inner_data = json.loads(data_json['data'])
+                            error_json = json.loads(line)
+                            if error_json.get('code') and error_json.get('code') != 200:
+                                error_msg = error_json.get('message', 'Unknown API Error')
+                                logger.error(f"EaseMate API Error (Non-SSE): {error_msg}")
+                                raise Exception(f"EaseMate API error: {error_msg}")
+                        except json.JSONDecodeError:
+                            # Không phải JSON, bỏ qua
+                            pass
+                        continue
+
+                    data_str = line[5:].strip()
+                    if data_str == "[DONE]":
+                        break
+                    try:
+                        data_json = json.loads(data_str)
+                        
+                        # Kiểm tra code lỗi từ API (nếu có)
+                        if data_json.get('code') and data_json.get('code') != 200:
+                            error_msg = data_json.get('message', 'Lỗi không xác định từ EaseMate')
+                            raise Exception(f"EaseMate API error: {error_msg}")
+
+                        if 'data' in data_json:
+                            inner_data = json.loads(data_json['data'])
+                            
+                            # Ưu tiên trả về answer, nếu là model thinking thì có thể trả về inference
+                            inference = inner_data.get('inference', '')
+                            if inference:
+                                yield inference
                                 
-                                # Ưu tiên trả về answer, nếu là model thinking thì có thể trả về inference
-                                inference = inner_data.get('inference', '')
-                                if inference:
-                                    yield inference
-                                    
-                                answer = inner_data.get('answer', '')
-                                if answer:
-                                    yield answer
-                        except:
-                            continue
+                            answer = inner_data.get('answer', '')
+                            if not answer and 'content' in inner_data: # Thử key content nếu answer trống
+                                answer = inner_data.get('content', '')
+                                
+                            if answer:
+                                yield answer
+                    except Exception as e:
+                        if "EaseMate API error" in str(e):
+                            raise e
+                        logger.error(f"Lỗi parse chunk EaseMate: {e}, Data: {data_str}")
+                        continue
         except Exception as e:
             logger.error(f"Lỗi stream EaseMate: {e}")
             raise e
