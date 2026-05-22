@@ -53,7 +53,7 @@ graph LR
     subgraph Backends[Providers]
         Dispatcher --> EM[EaseMate Provider]
         Dispatcher --> CX[ChatX Provider]
-        Dispatcher --> SG[Saigon Incom]
+        Dispatcher --> DA[DeepAI Provider]
     end
     
     EM --> SignServer[Node.js Signature]
@@ -77,28 +77,45 @@ graph LR
 
 ## Khả năng tương thích Model
 
+### DeepAI Provider (Standard & Specialized)
+Cung cấp các model mã nguồn mở và model được tinh chỉnh (No account needed).
+
+| Model ID | Mapping |
+| :--- | :--- |
+| `deepai/standard` | `standard` |
+| `deepai/deepseek-v3.2` | `deepseek-v3.2` |
+| `deepai/gemini-2.5-flash-lite` | `gemini-2.5-flash-lite` |
+| `deepai/gemma-4` | `gemma-4` |
+| `deepai/gpt-4.1-nano` | `gpt-4.1-nano` |
+| `deepai/gpt-oss-120b` | `gpt-oss-120b` |
+| `deepai/qwen3-30b-a3b` | `qwen3-30b-a3b` |
+| `deepai/gpt-5-nano` | `gpt-5-nano` |
+| `deepai/llama-3.3-70b-instruct` | `llama-3.3-70b-instruct` |
+| `deepai/llama-3.1-8b-instant` | `llama-3.1-8b-instant` |
+| `deepai/llama-4-scout` | `llama-4-scout` |
+
 ### EaseMate Provider (Gemini & More)
 Sử dụng công nghệ Signature để gọi trực tiếp vào API của EaseMate.
 
 | Model ID | Mapping |
 | :--- | :--- |
-| `1` | `llama-3.3` |
-| `2` | `claude-3-haiku` |
-| `3` | `gpt-4o-mini` |
-| `4` | `deepseek-v3.2` |
-| `5` | `deepseek-r1` |
-| `6` | `gemini-2.0-flash` |
-| `10` | `kimi-k2.5` |
-| `11` | `qwen3-235b` |
-| `17` | `gemini-3.0-flash` |
+| `easemate/llama-3.3` | `1` |
+| `easemate/claude-3-haiku` | `2` |
+| `easemate/gpt-4o-mini` | `3` |
+| `easemate/deepseek-v3.2` | `4` |
+| `easemate/deepseek-r1` | `5` |
+| `easemate/gemini-2.0-flash` | `6` |
+| `easemate/kimi-k2.5` | `10` |
+| `easemate/qwen3-235b` | `11` |
+| `easemate/gemini-3.0-flash` | `17` |
 
 ### ChatX Provider (DeepSeek & GPT)
 Hỗ trợ nhiều tài khoản để chuyển đổi.
 
 | Model ID | Mapping |
 | :--- | :--- |
-| `deepseek_flash` | `deepseek-v3-flash` |
-| `gpt3` | `gpt-3.5-turbo` |
+| `chatx/deepseek-v3-flash` | `deepseek_flash` |
+| `chatx/gpt-3.5-turbo` | `gpt3` |
 
 ---
 
