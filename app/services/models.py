@@ -237,6 +237,20 @@ CHATX_MODEL_MAPPING = {
     "gpt-3.5-turbo": "gpt3"
 }
 
+DEEPAI_MODEL_MAPPING = {
+    "standard": "standard",
+    "deepseek-v3.2": "deepseek-v3.2",
+    "gemini-2.5-flash-lite": "gemini-2.5-flash-lite",
+    "gemma-4": "gemma-4",
+    "gpt-4.1-nano": "gpt-4.1-nano",
+    "gpt-oss-120b": "gpt-oss-120b",
+    "qwen3-30b-a3b": "qwen3-30b-a3b",
+    "gpt-5-nano": "gpt-5-nano",
+    "llama-3.3-70b-instruct": "llama-3.3-70b-instruct",
+    "llama-3.1-8b-instant": "llama-3.1-8b-instant",
+    "llama-4-scout": "llama-4-scout"
+}
+
 def get_available_models() -> List[Dict[str, Any]]:
     """Lấy danh sách các model hiện có cho tính tương thích OpenAI."""
     service = get_model_service()
@@ -263,6 +277,15 @@ def get_available_models() -> List[Dict[str, Any]]:
             "owned_by": "easemate"
         })
         
+    # Thêm các model DeepAI với ID thân thiện
+    for name in DEEPAI_MODEL_MAPPING.keys():
+        available_list.append({
+            "id": f"deepai/{name}",
+            "object": "model",
+            "created": now,
+            "owned_by": "deepai"
+        })
+        
     # Nếu có model trong config.json, ưu tiên chúng
     if models:
         for m in models:
@@ -278,10 +301,12 @@ def get_available_models() -> List[Dict[str, Any]]:
 
 from app.providers.chatx import ChatXProvider
 from app.providers.easemate.easemate import EaseMateProvider
+from app.providers.deepai import DeepAIProvider
 
 # Khởi tạo các provider một lần để giữ trạng thái/connection pool của chúng
 chatx_provider = ChatXProvider()
 easemate_provider = EaseMateProvider()
+deepai_provider = DeepAIProvider()
 
 async def dispatch_message(model: str, message: str, session_id: str = None) -> Tuple[AsyncGenerator[str, None], str]:
     """Điều phối tin nhắn đến backend service phù hợp dựa trên tên model."""
@@ -298,6 +323,11 @@ async def dispatch_message(model: str, message: str, session_id: str = None) -> 
         if model_name in CHATX_MODEL_MAPPING:
             target_model = f"chatx/{CHATX_MODEL_MAPPING[model_name]}"
         return await chatx_provider.generate_stream(message, target_model, session_id)
+        
+    elif "deepai" in model_lower:
+        model_name = model.split("/")[-1] if "/" in model else model
+        target_model = DEEPAI_MODEL_MAPPING.get(model_name, "standard")
+        return await deepai_provider.generate_stream(message, target_model, session_id)
         
     # Fallback cho các trường hợp không có prefix
     elif any(k in model_lower for k in ["deepseek", "gpt", "claude"]):
