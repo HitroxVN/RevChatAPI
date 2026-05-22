@@ -44,6 +44,9 @@ class Settings:
     
     # Thiết lập Session
     SESSION_TTL: int = int(os.getenv("SESSION_TTL", "3600"))  # 1 giờ
+    
+    # Chế độ Debug
+    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
 
 
 settings = Settings()

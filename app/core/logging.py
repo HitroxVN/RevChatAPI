@@ -6,8 +6,14 @@ from app.core.config import settings
 
 def setup_logging():
     """Thiết lập logging cho ứng dụng."""
+    log_level = settings.LOG_LEVEL
+    if not settings.DEBUG:
+        log_level = logging.CRITICAL + 1
+    else:
+        log_level = getattr(logging, log_level)
+        
     logging.basicConfig(
-        level=getattr(logging, settings.LOG_LEVEL),
+        level=log_level,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
