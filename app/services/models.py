@@ -245,14 +245,6 @@ def get_available_models() -> List[Dict[str, Any]]:
     now = int(time.time())
     available_list = []
     
-    # Thêm model Saigon Incom (mặc định)
-    available_list.append({
-        "id": "test/saigon-incom",
-        "object": "model",
-        "created": now,
-        "owned_by": "saigon-incom"
-    })
-    
     # Thêm các model ChatX với ID thân thiện
     for name in CHATX_MODEL_MAPPING.keys():
         available_list.append({
@@ -285,12 +277,10 @@ def get_available_models() -> List[Dict[str, Any]]:
 
 
 from app.providers.chatx import ChatXProvider
-from app.providers.saigon import SaigonProvider
 from app.providers.easemate.easemate import EaseMateProvider
 
 # Khởi tạo các provider một lần để giữ trạng thái/connection pool của chúng
 chatx_provider = ChatXProvider()
-saigon_provider = SaigonProvider()
 easemate_provider = EaseMateProvider()
 
 async def dispatch_message(model: str, message: str, session_id: str = None) -> Tuple[AsyncGenerator[str, None], str]:
@@ -300,10 +290,7 @@ async def dispatch_message(model: str, message: str, session_id: str = None) -> 
     # Xử lý mapping model trước khi gửi đi
     target_model = model
     
-    if model == "test/saigon-incom":
-        return await saigon_provider.generate_stream(message, model, session_id)
-        
-    elif "easemate" in model_lower:
+    if "easemate" in model_lower:
         return await easemate_provider.generate_stream(message, model, session_id)
         
     elif "chatx" in model_lower:
